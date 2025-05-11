@@ -23,7 +23,7 @@ export class GameService {
     return savedScore;
   }
 
-  async getTopScores(limit = 3) {
+  async getTopScores(limit = 10) {
     return this.prisma.score.findMany({
       orderBy: { score: 'desc' },
       take: limit,
