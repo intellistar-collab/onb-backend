@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import Mailgun from "mailgun.js";
 import { PrismaService } from "src/prisma/prisma.service";
 import * as FormData from "form-data";
+import { randomBytes } from "crypto";
 
 @Injectable()
 export class GameService {
@@ -18,8 +19,9 @@ export class GameService {
 
     if (!existingSubscription) {
       // If not subscribed, subscribe them
+      const verificationToken = randomBytes(32).toString("hex");
       const subscription = await this.prisma.subscription.create({
-        data: { email, username: name },
+        data: { email, username: name, verificationToken },
       });
 
       const mg = new Mailgun(FormData);
