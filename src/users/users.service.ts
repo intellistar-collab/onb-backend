@@ -1,32 +1,41 @@
-import { EmailService } from './../common/services/email/email.service';
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import * as bcrypt from 'bcryptjs';
-import { CreateUserDto } from './dto/create-user.dto';
-import { HttpException, HttpStatus } from '@nestjs/common';
-import { UpdateUserDto } from './dto/update-user.dto';
-import { CreatePasswordResetDto } from './dto/create-password-reset.dto';
-import * as crypto from 'crypto';
-import { ResetPasswordDto } from './dto/reset-password.dto';
-import { Prisma } from '@prisma/client';
+import { EmailService } from "./../common/services/email/email.service";
+import { Injectable } from "@nestjs/common";
+import { PrismaService } from "../prisma/prisma.service";
+import * as bcrypt from "bcryptjs";
+import { CreateUserDto } from "./dto/create-user.dto";
+import { HttpException, HttpStatus } from "@nestjs/common";
+import { UpdateUserDto } from "./dto/update-user.dto";
+import { CreatePasswordResetDto } from "./dto/create-password-reset.dto";
+import * as crypto from "crypto";
+import { ResetPasswordDto } from "./dto/reset-password.dto";
+import { Prisma } from "@prisma/client";
 
 @Injectable()
 export class UsersService {
   constructor(
     private prisma: PrismaService,
-    private mailService: EmailService,
+    private mailService: EmailService
   ) {}
 
   async createUser(createUserDto: CreateUserDto) {
     // Input validation
-    const { email, role, username, avatar, address, mobile, location, password } = createUserDto;
+    const {
+      email,
+      role,
+      username,
+      avatar,
+      address,
+      mobile,
+      location,
+      password,
+    } = createUserDto;
 
     // Check if the email already exists
     const existingUser = await this.prisma.users.findUnique({
       where: { email },
     });
     if (existingUser) {
-      throw new HttpException('Email already exists', HttpStatus.BAD_REQUEST);
+      throw new HttpException("Email already exists", HttpStatus.BAD_REQUEST);
     }
 
     // Hash password
@@ -56,7 +65,10 @@ export class UsersService {
         return user; // Return user info (excluding wallet)
       });
     } catch (error) {
-      throw new HttpException('Error creating user', HttpStatus.INTERNAL_SERVER_ERROR);
+      throw new HttpException(
+        "Error creating user",
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
     }
   }
 
@@ -64,7 +76,10 @@ export class UsersService {
     try {
       return await this.prisma.users.delete({ where: { id } });
     } catch (error) {
-      throw new HttpException('Error deleting user', HttpStatus.INTERNAL_SERVER_ERROR);
+      throw new HttpException(
+        "Error deleting user",
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
     }
   }
 
@@ -72,7 +87,10 @@ export class UsersService {
     try {
       return await this.prisma.users.findUnique({ where: { email } });
     } catch (error) {
-      throw new HttpException('Error fetching user', HttpStatus.INTERNAL_SERVER_ERROR);
+      throw new HttpException(
+        "Error fetching user",
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
     }
   }
 
@@ -81,6 +99,8 @@ export class UsersService {
       email,
       role,
       username,
+      firstName,
+      lastName,
       avatar,
       address,
       mobile,
@@ -88,12 +108,20 @@ export class UsersService {
       otp,
       otpExpiry,
       requiresOTP,
+      dob,
+      gender,
+      streetNumberOrName,
+      street,
+      city,
+      state,
+      zipCode,
+      country,
     } = updateUserDto;
-    console.log('requiresOTP', requiresOTP);
+    console.log("requiresOTP", requiresOTP);
     // Check if the user exists
     const user = await this.prisma.users.findUnique({ where: { id } });
     if (!user) {
-      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+      throw new HttpException("User not found", HttpStatus.NOT_FOUND);
     }
 
     // Check if the email is already taken
@@ -102,7 +130,7 @@ export class UsersService {
         where: { email },
       });
       if (existingUser && existingUser.id !== id) {
-        throw new HttpException('Email already in use', HttpStatus.BAD_REQUEST);
+        throw new HttpException("Email already in use", HttpStatus.BAD_REQUEST);
       }
     }
 
@@ -120,10 +148,23 @@ export class UsersService {
           ...(otp !== undefined && { otp }), // Allow clearing OTP with null
           ...(otpExpiry !== undefined && { otpExpiry }), // Allow clearing expiry with null
           ...(requiresOTP !== undefined && { requiresOTP }),
+          ...(dob && { dob }),
+          ...(gender && { gender }),
+          ...(streetNumberOrName && { streetNumberOrName }),
+          ...(street && { street }),
+          ...(city && { city }),
+          ...(state && { state }),
+          ...(zipCode && { zipCode }),
+          ...(country && { country }),
+          ...(firstName && { firstName }),
+          ...(lastName && { lastName }),
         },
       });
     } catch (error) {
-      throw new HttpException('Error updating user', HttpStatus.INTERNAL_SERVER_ERROR);
+      throw new HttpException(
+        "Error updating user",
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
     }
   }
 
@@ -134,11 +175,11 @@ export class UsersService {
     // Find the user by email
     const user = await this.prisma.users.findUnique({ where: { email } });
     if (!user) {
-      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+      throw new HttpException("User not found", HttpStatus.NOT_FOUND);
     }
 
     // Generate a password reset token
-    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetToken = crypto.randomBytes(32).toString("hex");
 
     // Set the expiration for the reset token (e.g., 1 hour)
     const tokenExpiry = new Date();
@@ -157,7 +198,7 @@ export class UsersService {
     const resetLink = `${resetToken}`;
     await this.mailService.sendPasswordResetEmail(email, resetLink);
 
-    return { message: 'Password reset link has been sent to your email.' };
+    return { message: "Password reset link has been sent to your email." };
   }
 
   async resetPassword(resetPasswordDto: ResetPasswordDto) {
@@ -171,12 +212,15 @@ export class UsersService {
     });
 
     if (!user) {
-      throw new HttpException('Invalid reset token', HttpStatus.BAD_REQUEST);
+      throw new HttpException("Invalid reset token", HttpStatus.BAD_REQUEST);
     }
 
     // Check if the reset token has expired
     if (user.resetTokenExpiry && user.resetTokenExpiry < new Date()) {
-      throw new HttpException('Reset token has expired', HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        "Reset token has expired",
+        HttpStatus.BAD_REQUEST
+      );
     }
     console.log(user);
     // Hash the new password
@@ -194,7 +238,7 @@ export class UsersService {
       },
     });
 
-    return { message: 'Password has been successfully reset.' };
+    return { message: "Password has been successfully reset." };
   }
 
   async getAllUsers() {

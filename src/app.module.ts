@@ -1,14 +1,17 @@
-import { EmailService } from 'src/common/services/email/email.service';
-import { PrismaModule } from './prisma/prisma.module';
-import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
-import { UsersModule } from './users/users.module';
-import { AuthModule } from './auth/auth.module';
-import { ConfigModule } from '@nestjs/config';
-import { SubscriptionModule } from './subscription/subscription.module';
-import { GameModule } from './game/game.module';
-import { ScheduleModule } from '@nestjs/schedule';
+import { EmailService } from "src/common/services/email/email.service";
+import { PrismaModule } from "./prisma/prisma.module";
+import { Module } from "@nestjs/common";
+import { AppController } from "./app.controller";
+import { AppService } from "./app.service";
+import { UsersModule } from "./users/users.module";
+import { AuthModule } from "./auth/auth.module";
+import { ConfigModule } from "@nestjs/config";
+import { SubscriptionModule } from "./subscription/subscription.module";
+import { GameModule } from "./game/game.module";
+import { ScheduleModule } from "@nestjs/schedule";
+import { BoxCategoryModule } from "./box-category/box-category.module";
+import { BoxModule } from "./box/box.module";
+import { ItemsModule } from "./items/items.module";
 
 @Module({
   imports: [
@@ -19,6 +22,9 @@ import { ScheduleModule } from '@nestjs/schedule';
     SubscriptionModule,
     GameModule,
     ScheduleModule.forRoot(),
+    BoxCategoryModule,
+    BoxModule,
+    ItemsModule,
   ],
   controllers: [AppController],
   providers: [AppService, EmailService],
