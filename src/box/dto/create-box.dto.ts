@@ -1,11 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
-import {
-  IsDecimal,
-  IsInt,
-  IsOptional,
-  IsString,
-  IsBoolean,
-} from "class-validator";
+import { IsInt, IsOptional, IsString, IsBoolean } from "class-validator";
 
 export class CreateBoxDto {
   @ApiProperty({

@@ -122,10 +122,11 @@ model Box {
   items         Item[]
 
   // Analytics fields for future dashboard/insights
-  viewCount      Int @default(0)
-  clickCount     Int @default(0)
-  openedCount    Int @default(0)
-  purchasedCount Int @default(0)
+  purchasedCount           Int     @default(0)
+  totalRevenue             Decimal @default(0) @db.Decimal(12, 2)
+  totalPayout              Decimal @default(0) @db.Decimal(12, 2)
+  exchangeablePayout       Decimal @default(0) @db.Decimal(12, 2)
+  retainedProfitPercentage Decimal @default(0) @db.Decimal(12, 2)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
