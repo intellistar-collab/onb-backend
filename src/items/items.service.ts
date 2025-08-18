@@ -28,18 +28,65 @@ export class ItemsService {
     });
   }
 
-  async findAll(params: { page: number; limit: number }) {
-    const { page, limit } = params;
+  async findAll(params: {
+    page: number;
+    limit: number;
+    sortBy?: keyof Prisma.ItemOrderByWithRelationInput;
+    sortOrder?: "asc" | "desc";
+    filters?: Record<string, any>;
+  }) {
+    const {
+      page,
+      limit,
+      sortBy = "createdAt",
+      sortOrder = "desc",
+      filters = {},
+    } = params;
+
     const skip = (page - 1) * limit;
+
+    const allowedFilterFields: (keyof Prisma.ItemWhereInput)[] = [
+      "name",
+      "description",
+      "status",
+      "boxId",
+      "price",
+      "percentage",
+    ];
+
+    const where: Prisma.ItemWhereInput = {};
+
+    for (const [key, value] of Object.entries(filters)) {
+      if (!allowedFilterFields.includes(key as keyof Prisma.ItemWhereInput)) {
+        continue; // skip disallowed filters
+      }
+
+      if (["name", "description"].includes(key)) {
+        where[key] = {
+          contains: value,
+          mode: "insensitive",
+        };
+      } else if (["price", "percentage"].includes(key)) {
+        const num = parseFloat(value);
+        if (!isNaN(num)) {
+          where[key] = num;
+        }
+      } else {
+        where[key] = value; // for status and boxId
+      }
+    }
 
     const [items, total] = await this.prisma.$transaction([
       this.prisma.item.findMany({
+        where,
         skip,
         take: limit,
-        orderBy: { createdAt: "desc" },
+        orderBy: {
+          [sortBy]: sortOrder,
+        },
         include: { box: true },
       }),
-      this.prisma.item.count(),
+      this.prisma.item.count({ where }),
     ]);
 
     return {

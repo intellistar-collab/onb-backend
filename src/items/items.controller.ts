@@ -31,28 +31,94 @@ export class ItemsController {
   }
 
   @Get()
-  @ApiOperation({ summary: "Get paginated list of items" })
+  @ApiOperation({
+    summary: "Get paginated, filtered, and sorted list of items",
+  })
+  @ApiQuery({ name: "page", required: false, type: Number, example: 1 })
+  @ApiQuery({ name: "limit", required: false, type: Number, example: 10 })
   @ApiQuery({
-    name: "page",
+    name: "sortBy",
     required: false,
-    type: Number,
-    example: 1,
-    description: "Page number (default: 1)",
+    type: String,
+    example: "createdAt",
   })
   @ApiQuery({
-    name: "limit",
+    name: "sortOrder",
+    required: false,
+    type: String,
+    example: "desc",
+  })
+
+  // Supported filters
+  @ApiQuery({
+    name: "name",
+    required: false,
+    type: String,
+    description: "Partial match for item name",
+  })
+  @ApiQuery({
+    name: "description",
+    required: false,
+    type: String,
+    description: "Partial match for description",
+  })
+  @ApiQuery({
+    name: "status",
+    required: false,
+    type: String,
+    description: "Item status filter",
+  })
+  @ApiQuery({
+    name: "boxId",
+    required: false,
+    type: String,
+    description: "Box ID filter",
+  })
+  @ApiQuery({
+    name: "price",
     required: false,
     type: Number,
-    example: 10,
-    description: "Items per page (default: 10)",
+    description: "Exact price match",
   })
-  findAll(
-    @Query("page") page: string = "1",
-    @Query("limit") limit: string = "10"
-  ) {
+  @ApiQuery({
+    name: "percentage",
+    required: false,
+    type: Number,
+    description: "Exact percentage match",
+  })
+  findAll(@Query() query: Record<string, any>) {
+    const allowedSortFields = [
+      "createdAt",
+      "updatedAt",
+      "price",
+      "name",
+      "description",
+      "status",
+      "percentage",
+    ] as const;
+
+    const page = parseInt(query.page || "1", 10);
+    const limit = parseInt(query.limit || "10", 10);
+
+    const sortBy = allowedSortFields.includes(query.sortBy)
+      ? (query.sortBy as (typeof allowedSortFields)[number])
+      : "createdAt";
+
+    const sortOrder = query.sortOrder === "asc" ? "asc" : "desc";
+
+    // Strip pagination and sorting to get only filters
+    const filters: Record<string, any> = { ...query };
+    delete filters.page;
+    delete filters.limit;
+    delete filters.sortBy;
+    delete filters.sortOrder;
+
     return this.service.findAll({
-      page: parseInt(page, 10),
-      limit: parseInt(limit, 10),
+      page,
+      limit,
+      sortBy,
+      sortOrder,
+      filters,
     });
   }
 
