@@ -20,7 +20,13 @@ export class BoxService {
   findAll() {
     return this.prisma.box.findMany({
       orderBy: { order: "asc" },
-      include: { category: true, items: true },
+      include: {
+        category: true,
+        items: true,
+        _count: {
+          select: { items: true },
+        },
+      },
     });
   }
 
