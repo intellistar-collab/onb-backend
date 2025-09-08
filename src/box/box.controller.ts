@@ -39,4 +39,9 @@ export class BoxController {
   remove(@Param("id") id: string) {
     return this.service.remove(id);
   }
+
+  @Post(":id/spin")
+  async spinBox(@Param("id") id: string) {
+    return this.service.spinBox(id);
+  }
 }
