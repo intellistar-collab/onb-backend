@@ -143,6 +143,21 @@ export class UsersService {
     }
   }
 
+  async findUserById(id: string): Promise<User | null> {
+    try {
+      return await this.prisma.users.findUnique({
+        where: { id },
+      });
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      throw new HttpException(
+        `Error fetching user: ${errorMessage}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
   async updateUser(id: string, updateUserDto: UpdateUserDto): Promise<User> {
     const {
       email,

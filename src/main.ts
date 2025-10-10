@@ -6,6 +6,7 @@ import * as dotenv from "dotenv";
 import { ErrorHandlingInterceptor } from "./common/interceptors/error-handling.interceptor";
 import helmet from "helmet";
 import { logger } from "./common/logger/winston-logger";
+import * as cookieParser from "cookie-parser";
 
 dotenv.config(); // Load environment variables
 
@@ -14,6 +15,9 @@ async function bootstrap() {
 
   // Enable Helmet for security
   app.use(helmet());
+
+  // Enable cookie parser
+  app.use(cookieParser() as any);
 
   // Enable CORS with custom configuration
   app.enableCors({
@@ -44,4 +48,4 @@ async function bootstrap() {
   await app.listen(process.env.PORT || 8000);
 }
 
-bootstrap();
+void bootstrap();
