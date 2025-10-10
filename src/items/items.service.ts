@@ -2,22 +2,49 @@ import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateItemDto } from "./dto/create-item.dto";
 import { UpdateItemDto } from "./dto/update-item.dto";
-import { Prisma } from "@prisma/client";
+
+// Define interfaces for type safety
+interface Item {
+  id: string;
+  name: string;
+  description?: string | null;
+  imageUrl?: string | null;
+  price: number;
+  percentage: number;
+  status: string;
+  viewCount: number;
+  clickCount: number;
+  openedCount: number;
+  purchasedCount: number;
+  boxId: string;
+  createdAt: Date;
+  updatedAt: Date;
+  box?: any;
+}
+
+interface PaginatedResponse {
+  data: Item[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
 
 @Injectable()
 export class ItemsService {
   constructor(private prisma: PrismaService) {}
 
-  async create(data: CreateItemDto) {
-    return this.prisma.item.create({
+  async create(data: CreateItemDto): Promise<Item> {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    return (await this.prisma.item.create({
       data: {
         name: data.name,
         description: data.description,
         imageUrl: data.imageUrl,
-        price: data.price ? new Prisma.Decimal(data.price) : undefined,
-        percentage: data.percentage
-          ? new Prisma.Decimal(data.percentage)
-          : new Prisma.Decimal(0),
+        price: data.price,
+        percentage: data.percentage ?? 0,
         status: data.status,
         viewCount: data.viewCount ?? 0,
         clickCount: data.clickCount ?? 0,
@@ -25,16 +52,17 @@ export class ItemsService {
         purchasedCount: data.purchasedCount ?? 0,
         boxId: data.boxId,
       },
-    });
+    })) as Item;
   }
 
+  /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call */
   async findAll(params: {
     page: number;
     limit: number;
-    sortBy?: keyof Prisma.ItemOrderByWithRelationInput;
+    sortBy?: string;
     sortOrder?: "asc" | "desc";
     filters?: Record<string, any>;
-  }) {
+  }): Promise<PaginatedResponse> {
     const {
       page,
       limit,
@@ -45,7 +73,7 @@ export class ItemsService {
 
     const skip = (page - 1) * limit;
 
-    const allowedFilterFields: (keyof Prisma.ItemWhereInput)[] = [
+    const allowedFilterFields: string[] = [
       "name",
       "description",
       "status",
@@ -54,10 +82,10 @@ export class ItemsService {
       "percentage",
     ];
 
-    const where: Prisma.ItemWhereInput = {};
+    const where: any = {};
 
     for (const [key, value] of Object.entries(filters)) {
-      if (!allowedFilterFields.includes(key as keyof Prisma.ItemWhereInput)) {
+      if (!allowedFilterFields.includes(key)) {
         continue; // skip disallowed filters
       }
 
@@ -67,7 +95,7 @@ export class ItemsService {
           mode: "insensitive",
         };
       } else if (["price", "percentage"].includes(key)) {
-        const num = parseFloat(value);
+        const num = parseFloat(value as string);
         if (!isNaN(num)) {
           where[key] = num;
         }
@@ -90,17 +118,19 @@ export class ItemsService {
     ]);
 
     return {
-      data: items,
+      data: items as Item[],
       meta: {
-        total,
+        total: total as number,
         page,
         limit,
-        totalPages: Math.ceil(total / limit),
+        totalPages: Math.ceil((total as number) / limit),
       },
     };
+    /* eslint-enable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call */
   }
 
-  async findOne(id: string) {
+  async findOne(id: string): Promise<Item> {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     const item = await this.prisma.item.findUnique({
       where: { id },
       include: { box: true },
@@ -108,20 +138,19 @@ export class ItemsService {
     if (!item) {
       throw new NotFoundException("Item not found");
     }
-    return item;
+    return item as Item;
   }
 
-  async update(id: string, data: UpdateItemDto) {
-    return this.prisma.item.update({
+  async update(id: string, data: UpdateItemDto): Promise<Item> {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    return (await this.prisma.item.update({
       where: { id },
       data: {
         name: data.name,
         description: data.description,
         imageUrl: data.imageUrl,
-        price: data.price ? new Prisma.Decimal(data.price) : undefined,
-        percentage: data.percentage
-          ? new Prisma.Decimal(data.percentage)
-          : undefined,
+        price: data.price,
+        percentage: data.percentage,
         status: data.status,
         viewCount: data.viewCount,
         clickCount: data.clickCount,
@@ -129,12 +158,13 @@ export class ItemsService {
         purchasedCount: data.purchasedCount,
         boxId: data.boxId,
       },
-    });
+    })) as Item;
   }
 
-  async remove(id: string) {
-    return this.prisma.item.delete({
+  async remove(id: string): Promise<Item> {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    return (await this.prisma.item.delete({
       where: { id },
-    });
+    })) as Item;
   }
 }

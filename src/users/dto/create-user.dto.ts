@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty } from "@nestjs/swagger";
 import {
   IsString,
   IsEmail,
@@ -7,48 +7,48 @@ import {
   Length,
   IsOptional,
   IsBoolean,
-} from 'class-validator';
+} from "class-validator";
 
 export class CreateUserDto {
-  @ApiProperty({ example: 'Ayman', description: 'User Name' })
+  @ApiProperty({ example: "Ayman", description: "User Name" })
   @IsNotEmpty()
   username: string;
 
-  @ApiProperty({ example: 'user@gmail.com', description: 'User email' })
-  @IsEmail({}, { message: 'Invalid email address' })
+  @ApiProperty({ example: "user@gmail.com", description: "User email" })
+  @IsEmail({}, { message: "Invalid email address" })
   email: string;
 
-  @ApiProperty({ example: 'password123', description: 'User password' })
+  @ApiProperty({ example: "password123", description: "User password" })
   @IsString()
   @IsNotEmpty()
-  @Length(6, 20, { message: 'Password should be between 6 and 20 characters' })
+  @Length(6, 20, { message: "Password should be between 6 and 20 characters" })
   password: string;
 
   @ApiProperty({
-    example: 'ADMIN',
-    enum: ['ADMIN', 'USER', 'SUPER_ADMIN'],
-    description: 'User role',
+    example: "ADMIN",
+    enum: ["ADMIN", "USER", "SUPER_ADMIN"],
+    description: "User role",
   })
-  @IsEnum({ ADMIN: 'ADMIN', USER: 'USER', SUPER_ADMIN: 'SUPER_ADMIN' })
-  role: 'ADMIN' | 'USER' | 'SUPER_ADMIN';
+  @IsEnum({ ADMIN: "ADMIN", USER: "USER", SUPER_ADMIN: "SUPER_ADMIN" })
+  role: "ADMIN" | "USER" | "SUPER_ADMIN";
 
-  @ApiProperty({ example: 'New Avatar URL', required: false })
+  @ApiProperty({ example: "New Avatar URL", required: false })
   @IsOptional()
   @IsString()
   avatar?: string;
 
-  @ApiProperty({ example: 'New Address', required: false })
+  @ApiProperty({ example: "New Address", required: false })
   @IsOptional()
   @IsString()
   address?: string;
 
-  @ApiProperty({ example: '+1234567890', required: false })
+  @ApiProperty({ example: "+1234567890", required: false })
   @IsOptional()
   @IsString()
   @Length(10, 15)
   mobile?: string;
 
-  @ApiProperty({ example: 'New Location', required: false })
+  @ApiProperty({ example: "New Location", required: false })
   @IsOptional()
   @IsString()
   location?: string;
@@ -56,7 +56,7 @@ export class CreateUserDto {
   @ApiProperty({
     example: true,
     required: false,
-    description: 'Indicates if the user requires OTP for first login',
+    description: "Indicates if the user requires OTP for first login",
   })
   @IsOptional()
   @IsBoolean()

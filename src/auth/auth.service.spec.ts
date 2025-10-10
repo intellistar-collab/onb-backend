@@ -1,11 +1,11 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { AuthService } from './auth.service';
-import { UsersService } from '../users/users.service';
-import { JwtService } from '@nestjs/jwt';
-import * as bcrypt from 'bcryptjs';
-import { UnauthorizedException } from '@nestjs/common';
+import { Test, TestingModule } from "@nestjs/testing";
+import { AuthService } from "./auth.service";
+import { UsersService } from "../users/users.service";
+import { JwtService } from "@nestjs/jwt";
+import * as bcrypt from "bcryptjs";
+import { UnauthorizedException } from "@nestjs/common";
 
-describe('AuthService', () => {
+describe("AuthService", () => {
   let service: AuthService;
   let usersService: UsersService;
   let jwtService: JwtService;
@@ -16,8 +16,8 @@ describe('AuthService', () => {
     };
 
     const mockJwtService = {
-      sign: jest.fn().mockReturnValue('mocked-jwt-token'),
-      verify: jest.fn().mockReturnValue({ sub: 'user-id', role: 'USER' }),
+      sign: jest.fn().mockReturnValue("mocked-jwt-token"),
+      verify: jest.fn().mockReturnValue({ sub: "user-id", role: "USER" }),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -33,21 +33,24 @@ describe('AuthService', () => {
     jwtService = module.get<JwtService>(JwtService);
   });
 
-  it('should be defined', () => {
+  it("should be defined", () => {
     expect(service).toBeDefined();
   });
 
-  describe('validateUser', () => {
-    it('should return user data if credentials are correct', async () => {
+  describe("validateUser", () => {
+    it("should return user data if credentials are correct", async () => {
       const mockUser = {
-        id: 1,
-        email: 'test@example.com',
-        password: await bcrypt.hash('password123', 10),
-        role: 'USER',
+        id: "1",
+        email: "test@example.com",
+        password: await bcrypt.hash("password123", 10),
+        role: "USER",
       };
       usersService.findUserByEmail = jest.fn().mockResolvedValue(mockUser);
 
-      const result = await service.validateUser('test@example.com', 'password123');
+      const result = await service.validateUser(
+        "test@example.com",
+        "password123",
+      );
 
       expect(result).toEqual({
         id: mockUser.id,
@@ -56,35 +59,37 @@ describe('AuthService', () => {
       });
     });
 
-    it('should throw UnauthorizedException if credentials are incorrect', async () => {
+    it("should throw UnauthorizedException if credentials are incorrect", async () => {
       usersService.findUserByEmail = jest.fn().mockResolvedValue(null);
 
-      await expect(service.validateUser('wrong@example.com', 'wrongpassword')).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(
+        service.validateUser("wrong@example.com", "wrongpassword"),
+      ).rejects.toThrow(UnauthorizedException);
     });
   });
 
-  describe('login', () => {
-    it('should return JWT token on successful login', async () => {
+  describe("login", () => {
+    it("should return JWT token on successful login", async () => {
       const mockUser = {
-        id: 1,
-        email: 'test@example.com',
-        password: await bcrypt.hash('password123', 10),
-        role: 'USER',
+        id: "1",
+        email: "test@example.com",
+        password: await bcrypt.hash("password123", 10),
+        role: "USER",
       };
       usersService.findUserByEmail = jest.fn().mockResolvedValue(mockUser);
 
-      jest.spyOn(service, 'validateUser').mockResolvedValue({
+      jest.spyOn(service, "validateUser").mockResolvedValue({
         id: mockUser.id,
         email: mockUser.email,
         role: mockUser.role,
-      } as any);
+        requiresOTP: false,
+      });
 
-      const result = await service.login('test@example.com', 'password123');
+      const result = await service.login("test@example.com", "password123");
 
-      expect(result).toEqual({ access_token: 'mocked-jwt-token' });
-      expect(jwtService.sign).toHaveBeenCalledWith({
+      expect(result).toEqual({ access_token: "mocked-jwt-token" });
+      const signSpy = jest.spyOn(jwtService, "sign");
+      expect(signSpy).toHaveBeenCalledWith({
         sub: mockUser.id,
         role: mockUser.role,
       });

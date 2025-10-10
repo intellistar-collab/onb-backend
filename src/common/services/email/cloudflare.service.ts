@@ -1,7 +1,22 @@
 import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
 import axios from "axios";
 import * as FormData from "form-data";
-import * as fs from "fs";
+
+// Define interfaces for Cloudflare API responses
+interface CloudflareResponse {
+  success: boolean;
+  result?: any;
+  errors?: any[];
+}
+
+interface CloudflareUploadResult {
+  id: string;
+  uploadURL: string;
+}
+
+interface CloudflareImageResult {
+  variants: string[];
+}
 
 @Injectable()
 export class CloudflareService {
@@ -62,7 +77,7 @@ export class CloudflareService {
   //     );
   //   }
   // }
-  async generateDirectUploadUrl(): Promise<{ id: string; uploadURL: string }> {
+  async generateDirectUploadUrl(): Promise<CloudflareUploadResult> {
     const url = `https://api.cloudflare.com/client/v4/accounts/${this.accountId}/images/v2/direct_upload`;
 
     const form = new FormData();
@@ -70,37 +85,39 @@ export class CloudflareService {
     form.append("metadata", JSON.stringify({ generatedBy: "nestjs-service" })); // optional metadata
 
     try {
-      const response = await axios.post(url, form, {
+      const response = await axios.post<CloudflareResponse>(url, form, {
         headers: {
           Authorization: `Bearer ${this.apiToken}`,
           ...form.getHeaders(), // very important to set correct content-type including boundary
         },
       });
 
-      if (!response.data.success) {
-        throw new Error(
-          `Cloudflare error: ${JSON.stringify(response.data.errors)}`
-        );
+      const data = response.data;
+      if (!data.success) {
+        throw new Error(`Cloudflare error: ${JSON.stringify(data.errors)}`);
       }
 
-      return response.data.result; // returns { id, uploadURL }
-    } catch (error) {
+      return data.result as CloudflareUploadResult; // returns { id, uploadURL }
+    } catch (error: unknown) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+      const errorData = (error as any)?.response?.data;
+
       console.error(
         "[Cloudflare] Error:",
-        JSON.stringify(error.response?.data ?? error, null, 2)
+        JSON.stringify(errorData ?? error, null, 2),
       );
       throw new HttpException(
-        error.response?.data ?? "Failed to generate upload URL",
-        HttpStatus.BAD_REQUEST
+        (errorData as string) ?? "Failed to generate upload URL",
+        HttpStatus.BAD_REQUEST,
       );
     }
   }
 
-  async uploadImage(fileBuffer: Buffer, fileName: string) {
+  async uploadImage(fileBuffer: Buffer, fileName: string): Promise<string> {
     const form = new FormData();
     form.append("file", fileBuffer, fileName);
 
-    const response = await axios.post(
+    const response = await axios.post<CloudflareResponse>(
       `https://api.cloudflare.com/client/v4/accounts/${this.accountId}/images/v1`,
       form,
       {
@@ -108,18 +125,17 @@ export class CloudflareService {
           Authorization: `Bearer ${this.apiToken}`,
           ...form.getHeaders(),
         },
-      }
+      },
     );
 
-    if (response.data.success) {
-      return response.data.result.variants[0]; // public URL
+    const data = response.data;
+    if (data.success) {
+      const result = data.result as CloudflareImageResult;
+      return result.variants[0]; // public URL
     } else {
-      console.error(
-        "Cloudflare upload error:",
-        JSON.stringify(response.data, null, 2)
-      );
+      console.error("Cloudflare upload error:", JSON.stringify(data, null, 2));
       throw new Error(
-        "Cloudflare image upload failed. Check logs for details."
+        "Cloudflare image upload failed. Check logs for details.",
       );
     }
   }

@@ -8,16 +8,55 @@ import { UpdateUserDto } from "./dto/update-user.dto";
 import { CreatePasswordResetDto } from "./dto/create-password-reset.dto";
 import * as crypto from "crypto";
 import { ResetPasswordDto } from "./dto/reset-password.dto";
-import { Prisma } from "@prisma/client";
+
+// Define interfaces for type safety
+interface User {
+  id: string;
+  email: string;
+  username: string;
+  role: string;
+  firstName?: string;
+  lastName?: string;
+  avatar?: string;
+  address?: string;
+  mobile?: string;
+  location?: string;
+  password: string;
+  otp?: string | null;
+  otpExpiry?: Date | null;
+  requiresOTP?: boolean;
+  resetToken?: string | null;
+  resetTokenExpiry?: Date | null;
+  dob?: Date | null;
+  gender?: string | null;
+  streetNumberOrName?: string | null;
+  street?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zipCode?: string | null;
+  country?: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface UserWithWallet extends User {
+  wallet?: {
+    id: string;
+    userId: string;
+    balance: number;
+    createdAt: Date;
+    updatedAt: Date;
+  };
+}
 
 @Injectable()
 export class UsersService {
   constructor(
     private prisma: PrismaService,
-    private mailService: EmailService
+    private mailService: EmailService,
   ) {}
 
-  async createUser(createUserDto: CreateUserDto) {
+  async createUser(createUserDto: CreateUserDto): Promise<User> {
     // Input validation
     const {
       email,
@@ -31,6 +70,7 @@ export class UsersService {
     } = createUserDto;
 
     // Check if the email already exists
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     const existingUser = await this.prisma.users.findUnique({
       where: { email },
     });
@@ -42,8 +82,10 @@ export class UsersService {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     try {
-      return this.prisma.$transaction(async (prisma) => {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+      return (await this.prisma.$transaction(async (prisma) => {
         // Create the user
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
         const user = await prisma.users.create({
           data: {
             email,
@@ -58,43 +100,56 @@ export class UsersService {
         });
 
         // Create a wallet with 0 balance for the user
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
         await prisma.wallet.create({
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
           data: { userId: user.id, balance: 0 },
         });
 
-        return user; // Return user info (excluding wallet)
-      });
-    } catch (error) {
+        return user as User; // Return user info (excluding wallet)
+      })) as User;
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
       throw new HttpException(
-        "Error creating user",
-        HttpStatus.INTERNAL_SERVER_ERROR
+        `Error creating user: ${errorMessage}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
 
-  async deleteUser(id: string) {
+  async deleteUser(id: string): Promise<{ message: string }> {
     try {
-      return await this.prisma.users.delete({ where: { id } });
-    } catch (error) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+      await this.prisma.users.delete({ where: { id } });
+      return { message: "User deleted successfully" };
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
       throw new HttpException(
-        "Error deleting user",
-        HttpStatus.INTERNAL_SERVER_ERROR
+        `Error deleting user: ${errorMessage}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
 
-  async findUserByEmail(email: string) {
+  async findUserByEmail(email: string): Promise<User | null> {
     try {
-      return await this.prisma.users.findUnique({ where: { email } });
-    } catch (error) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+      return (await this.prisma.users.findUnique({
+        where: { email },
+      })) as User | null;
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
       throw new HttpException(
-        "Error fetching user",
-        HttpStatus.INTERNAL_SERVER_ERROR
+        `Error fetching user: ${errorMessage}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
 
-  async updateUser(id: string, updateUserDto: UpdateUserDto) {
+  async updateUser(id: string, updateUserDto: UpdateUserDto): Promise<User> {
     const {
       email,
       role,
@@ -119,6 +174,7 @@ export class UsersService {
     } = updateUserDto;
     console.log("requiresOTP", requiresOTP);
     // Check if the user exists
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     const user = await this.prisma.users.findUnique({ where: { id } });
     if (!user) {
       throw new HttpException("User not found", HttpStatus.NOT_FOUND);
@@ -126,16 +182,19 @@ export class UsersService {
 
     // Check if the email is already taken
     if (email) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
       const existingUser = await this.prisma.users.findUnique({
         where: { email },
       });
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       if (existingUser && existingUser.id !== id) {
         throw new HttpException("Email already in use", HttpStatus.BAD_REQUEST);
       }
     }
 
     try {
-      return await this.prisma.users.update({
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+      return (await this.prisma.users.update({
         where: { id },
         data: {
           ...(email && { email }),
@@ -159,20 +218,25 @@ export class UsersService {
           ...(firstName && { firstName }),
           ...(lastName && { lastName }),
         },
-      });
-    } catch (error) {
+      })) as User;
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
       throw new HttpException(
-        "Error updating user",
-        HttpStatus.INTERNAL_SERVER_ERROR
+        `Error updating user: ${errorMessage}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
 
   // Request password reset
-  async requestPasswordReset(createPasswordResetDto: CreatePasswordResetDto) {
+  async requestPasswordReset(
+    createPasswordResetDto: CreatePasswordResetDto,
+  ): Promise<{ message: string }> {
     const { email } = createPasswordResetDto;
 
     // Find the user by email
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     const user = await this.prisma.users.findUnique({ where: { email } });
     if (!user) {
       throw new HttpException("User not found", HttpStatus.NOT_FOUND);
@@ -186,12 +250,13 @@ export class UsersService {
     tokenExpiry.setHours(tokenExpiry.getHours() + 1); // 1 hour expiration
 
     // Save the reset token hash and expiration to the database
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     await this.prisma.users.update({
       where: { email },
       data: {
         resetToken: resetToken,
         resetTokenExpiry: tokenExpiry,
-      } as Prisma.UsersUpdateInput,
+      },
     });
 
     // Send the email with the reset link (including the resetToken)
@@ -201,15 +266,18 @@ export class UsersService {
     return { message: "Password reset link has been sent to your email." };
   }
 
-  async resetPassword(resetPasswordDto: ResetPasswordDto) {
+  async resetPassword(
+    resetPasswordDto: ResetPasswordDto,
+  ): Promise<{ message: string }> {
     const { password, resetToken } = resetPasswordDto;
 
     // Find the user by reset token (using findFirst as resetToken might not be unique)
-    const user = await this.prisma.users.findFirst({
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    const user = (await this.prisma.users.findFirst({
       where: {
         resetToken: resetToken, // querying by resetToken explicitly
       },
-    });
+    })) as User | null;
 
     if (!user) {
       throw new HttpException("Invalid reset token", HttpStatus.BAD_REQUEST);
@@ -219,7 +287,7 @@ export class UsersService {
     if (user.resetTokenExpiry && user.resetTokenExpiry < new Date()) {
       throw new HttpException(
         "Reset token has expired",
-        HttpStatus.BAD_REQUEST
+        HttpStatus.BAD_REQUEST,
       );
     }
     console.log(user);
@@ -227,6 +295,7 @@ export class UsersService {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // Update the user's password and clear the reset token and expiry
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     await this.prisma.users.update({
       where: {
         id: user.id, // Use the unique ID to update
@@ -241,11 +310,12 @@ export class UsersService {
     return { message: "Password has been successfully reset." };
   }
 
-  async getAllUsers() {
-    return this.prisma.users.findMany({
+  async getAllUsers(): Promise<UserWithWallet[]> {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    return (await this.prisma.users.findMany({
       include: {
         wallet: true,
       },
-    });
+    })) as UserWithWallet[];
   }
 }

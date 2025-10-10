@@ -1,4 +1,3 @@
-/* eslint-disable prettier/prettier */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Injectable } from "@nestjs/common";
@@ -13,7 +12,7 @@ import * as FormData from "form-data";
 export class EmailService {
   constructor(
     private configService: ConfigService,
-    private subscriptionService: SubscriptionService
+    private subscriptionService: SubscriptionService,
   ) {}
 
   async sendEmail(to: string, subject: string, text: string, html?: string) {
@@ -37,7 +36,7 @@ export class EmailService {
           subject: subject,
           text: text,
           ...(html && { html }),
-        }
+        },
       );
 
       console.log(data);
@@ -72,7 +71,7 @@ export class EmailService {
             verificationToken: subscription?.verificationToken,
             username: subscription?.username,
           }),
-        }
+        },
       );
 
       console.log(data);
@@ -102,7 +101,7 @@ export class EmailService {
           subject: "Welcome Email",
           template: "Welcome Email",
           "h:X-Mailgun-Variables": JSON.stringify({ test: "test" }),
-        }
+        },
       );
 
       console.log(data);
@@ -137,7 +136,7 @@ export class EmailService {
             username: subscription?.username,
             points: subscription?.points,
           }),
-        }
+        },
       );
 
       console.log(data);
@@ -172,7 +171,7 @@ export class EmailService {
             text: `Hey ${subscription?.username}, thanks for verifying. Invite friends and earn rewards!`,
             user: subscription?.username,
           }),
-        }
+        },
       );
 
       console.log(data);
@@ -215,7 +214,7 @@ export class EmailService {
   async sendEmailsToSelected(
     emails: string[],
     subject: string,
-    message: string
+    message: string,
   ) {
     if (!emails.length) {
       return { message: "No emails provided" };

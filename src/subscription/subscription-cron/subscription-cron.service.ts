@@ -1,8 +1,18 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
-import { PrismaService } from 'src/prisma/prisma.service';
-import * as dayjs from 'dayjs';
-import { EmailService } from 'src/common/services/email/email.service';
+import { Injectable, Logger } from "@nestjs/common";
+import { Cron, CronExpression } from "@nestjs/schedule";
+import { PrismaService } from "src/prisma/prisma.service";
+import * as dayjs from "dayjs";
+import { EmailService } from "src/common/services/email/email.service";
+
+// Define interface for subscription data
+interface Subscription {
+  id: string;
+  email: string;
+  username: string;
+  verified: boolean;
+  verifiedAt?: Date | null;
+  followUpEmailSent: boolean;
+}
 
 @Injectable()
 export class SubscriptionCronService {
@@ -14,10 +24,11 @@ export class SubscriptionCronService {
   ) {}
 
   @Cron(CronExpression.EVERY_30_MINUTES)
-  async sendFollowupToVerifiedUsers() {
-    console.log('sendFollowupToVerifiedUsers');
-    const cutoff = dayjs().subtract(24, 'hour').toDate();
+  async sendFollowupToVerifiedUsers(): Promise<void> {
+    console.log("sendFollowupToVerifiedUsers");
+    const cutoff = dayjs().subtract(24, "hour").toDate();
 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     const users = await this.prisma.subscription.findMany({
       where: {
         verified: true,
@@ -28,7 +39,7 @@ export class SubscriptionCronService {
       },
     });
 
-    for (const user of users) {
+    for (const user of users as Subscription[]) {
       try {
         await this.emailService.sendInviteEmail({
           text: `Hey ${user.username}, thanks for verifying. Invite friends and earn rewards!`,
@@ -38,12 +49,18 @@ export class SubscriptionCronService {
 
         this.logger.log(`Follow-up email sent to ${user.email}`);
 
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
         await this.prisma.subscription.update({
           where: { id: user.id },
           data: { followUpEmailSent: true },
         });
-      } catch (error) {
-        this.logger.error(`Failed to send email to ${user.email}`, error.stack);
+      } catch (error: unknown) {
+        const errorMessage =
+          error instanceof Error ? error.stack : "Unknown error";
+        this.logger.error(
+          `Failed to send email to ${user.email}`,
+          errorMessage,
+        );
       }
     }
   }

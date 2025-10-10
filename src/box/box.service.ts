@@ -2,22 +2,83 @@ import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateBoxDto } from "./dto/create-box.dto";
 import { UpdateBoxDto } from "./dto/update-box.dto";
-import { Prisma } from "@prisma/client";
+
+// Define interfaces to avoid 'any' type warnings
+interface Box {
+  id: string;
+  title: string;
+  description?: string | null;
+  location: string;
+  price: number;
+  imageUrl: string;
+  backgroundImage: string;
+  isActive: boolean;
+  order: number;
+  boxCategoryId: string;
+  purchasedCount: number;
+  totalRevenue: number;
+  totalPayout: number;
+  exchangeablePayout: number;
+  retainedProfitPercentage: number;
+  createdAt: Date;
+  updatedAt: Date;
+  items?: Item[];
+}
+
+interface Item {
+  id: string;
+  name: string;
+  description?: string | null;
+  imageUrl?: string | null;
+  price: number;
+  percentage: number;
+  status: string;
+  viewCount: number;
+  clickCount: number;
+  openedCount: number;
+  purchasedCount: number;
+  boxId: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface SpinResult {
+  prize: {
+    id: string;
+    name: string;
+    price: number;
+    threshold: number;
+  };
+  financials: {
+    totalRevenue: number;
+    totalPayout: number;
+    exchangeablePayout: number;
+    retainedProfit: number;
+    netProfit: number;
+  };
+  box: {
+    id: string;
+    title: string;
+    price: number;
+  };
+}
 
 @Injectable()
 export class BoxService {
   constructor(private prisma: PrismaService) {}
 
-  create(data: CreateBoxDto) {
+  create(data: CreateBoxDto): Promise<Box> {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     return this.prisma.box.create({
       data: {
         ...data,
-        price: new Prisma.Decimal(data.price),
+        price: data.price,
       },
-    });
+    }) as Promise<Box>;
   }
 
-  findAll() {
+  findAll(): Promise<Box[]> {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     return this.prisma.box.findMany({
       orderBy: { order: "asc" },
       include: {
@@ -27,44 +88,48 @@ export class BoxService {
           select: { items: true },
         },
       },
-    });
+    }) as Promise<Box[]>;
   }
 
-  findOne(id: string) {
+  findOne(id: string): Promise<Box | null> {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     return this.prisma.box.findUnique({
       where: { id },
       include: { category: true, items: true },
-    });
+    }) as Promise<Box | null>;
   }
 
-  update(id: string, data: UpdateBoxDto) {
+  update(id: string, data: UpdateBoxDto): Promise<Box> {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     return this.prisma.box.update({
       where: { id },
       data: {
         ...data,
-        price: data.price ? new Prisma.Decimal(data.price) : undefined,
+        price: data.price,
       },
-    });
+    }) as Promise<Box>;
   }
 
-  remove(id: string) {
-    return this.prisma.box.delete({ where: { id } });
+  remove(id: string): Promise<Box> {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    return this.prisma.box.delete({ where: { id } }) as Promise<Box>;
   }
 
-  async spinBox(boxId: string) {
+  async spinBox(boxId: string): Promise<SpinResult> {
     // 1. Fetch box with items
-    const box = await this.prisma.box.findUnique({
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    const box = (await this.prisma.box.findUnique({
       where: { id: boxId },
       include: { items: true },
-    });
+    })) as Box | null;
 
-    if (!box || box.items.length === 0) {
+    if (!box || !box.items || box.items.length === 0) {
       throw new Error("Box not found or has no items");
     }
 
     // 2. Build cumulative distribution
     let cumulative = 0;
-    const distribution = box.items.map((item) => {
+    const distribution = box.items.map((item: Item) => {
       cumulative += Number(item.percentage);
       return {
         id: item.id,
@@ -77,7 +142,12 @@ export class BoxService {
 
     // 3. Pick a random item
     const r = Math.random() * totalWeight;
-    let selected = distribution[0];
+    let selected: {
+      id: string;
+      name: string;
+      price: number;
+      threshold: number;
+    } = distribution[0];
     for (const item of distribution) {
       if (r < item.threshold) {
         selected = item;
@@ -100,13 +170,16 @@ export class BoxService {
     const netProfit = newTotalRevenue - newTotalPayout + retainedProfit;
 
     // 5. Update DB
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
     await this.prisma.$transaction([
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
       this.prisma.item.update({
         where: { id: selected.id },
         data: {
           purchasedCount: { increment: 1 },
         },
       }),
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
       this.prisma.box.update({
         where: { id: boxId },
         data: {

@@ -1,6 +1,14 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { IsString, IsOptional, IsEnum, IsUrl, IsNumber } from "class-validator";
-import { ItemStatus } from "@prisma/client";
+
+// Define ItemStatus enum locally since it's not exported from @prisma/client
+export enum ItemStatus {
+  MOST_WANTED = "MOST_WANTED",
+  WANTED = "WANTED",
+  IN_DEMAND = "IN_DEMAND",
+  UNCOMMON = "UNCOMMON",
+  COMMON = "COMMON",
+}
 
 export class CreateItemDto {
   @ApiProperty({

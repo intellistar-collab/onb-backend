@@ -16,17 +16,61 @@ import { UpdateItemDto } from "./dto/update-item.dto";
 import { ApiQuery, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { CloudflareService } from "src/common/services/email/cloudflare.service";
+
+// Define interfaces for type safety
+interface CloudflareUploadResult {
+  id: string;
+  uploadURL: string;
+}
+
+interface UploadResponse {
+  uploadUrl: CloudflareUploadResult;
+}
+
+interface ImageUploadResponse {
+  imageUrl: string;
+}
+
+// Define Item interface to match service
+interface Item {
+  id: string;
+  name: string;
+  description?: string | null;
+  imageUrl?: string | null;
+  price: number;
+  percentage: number;
+  status: string;
+  viewCount: number;
+  clickCount: number;
+  openedCount: number;
+  purchasedCount: number;
+  boxId: string;
+  createdAt: Date;
+  updatedAt: Date;
+  box?: any;
+}
+
+// Define PaginatedResponse interface to match service
+interface PaginatedResponse {
+  data: Item[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
 @ApiTags("Items")
 @Controller("items")
 export class ItemsController {
   constructor(
     private readonly service: ItemsService,
-    private readonly cloudflareService: CloudflareService
+    private readonly cloudflareService: CloudflareService,
   ) {}
 
   @Post()
   @ApiOperation({ summary: "Create a new item" })
-  create(@Body() dto: CreateItemDto) {
+  create(@Body() dto: CreateItemDto): Promise<Item> {
     return this.service.create(dto);
   }
 
@@ -86,7 +130,7 @@ export class ItemsController {
     type: Number,
     description: "Exact percentage match",
   })
-  findAll(@Query() query: Record<string, any>) {
+  findAll(@Query() query: Record<string, any>): Promise<PaginatedResponse> {
     const allowedSortFields = [
       "createdAt",
       "updatedAt",
@@ -97,12 +141,16 @@ export class ItemsController {
       "percentage",
     ] as const;
 
-    const page = parseInt(query.page || "1", 10);
-    const limit = parseInt(query.limit || "10", 10);
+    const page = parseInt((query.page as string) || "1", 10);
+    const limit = parseInt((query.limit as string) || "10", 10);
 
-    const sortBy = allowedSortFields.includes(query.sortBy)
-      ? (query.sortBy as (typeof allowedSortFields)[number])
-      : "createdAt";
+    const sortBy =
+      query.sortBy &&
+      typeof query.sortBy === "string" &&
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+      allowedSortFields.includes(query.sortBy as any)
+        ? query.sortBy
+        : "createdAt";
 
     const sortOrder = query.sortOrder === "asc" ? "asc" : "desc";
 
@@ -124,36 +172,38 @@ export class ItemsController {
 
   @Get(":id")
   @ApiOperation({ summary: "Get item by ID" })
-  findOne(@Param("id") id: string) {
+  findOne(@Param("id") id: string): Promise<Item> {
     return this.service.findOne(id);
   }
 
   @Put(":id")
   @ApiOperation({ summary: "Update item by ID" })
-  update(@Param("id") id: string, @Body() dto: UpdateItemDto) {
+  update(@Param("id") id: string, @Body() dto: UpdateItemDto): Promise<Item> {
     return this.service.update(id, dto);
   }
 
   @Delete(":id")
   @ApiOperation({ summary: "Delete item by ID" })
-  remove(@Param("id") id: string) {
+  remove(@Param("id") id: string): Promise<Item> {
     return this.service.remove(id);
   }
 
   @Post("upload")
   @UseInterceptors(FileInterceptor("file"))
-  async uploadImage(@UploadedFile() file: Express.Multer.File) {
+  async uploadImage(
+    @UploadedFile() file: Express.Multer.File,
+  ): Promise<ImageUploadResponse> {
     console.log(file);
     const fileName = file.originalname;
     const imageUrl = await this.cloudflareService.uploadImage(
       file.buffer,
-      fileName
+      fileName,
     );
     return { imageUrl };
   }
 
   @Get("cloudflare-images/upload-url")
-  async getUploadUrl() {
+  async getUploadUrl(): Promise<UploadResponse> {
     const uploadUrl = await this.cloudflareService.generateDirectUploadUrl();
     return { uploadUrl };
   }
