@@ -28,7 +28,6 @@ export class SubscriptionCronService {
     console.log("sendFollowupToVerifiedUsers");
     const cutoff = dayjs().subtract(24, "hour").toDate();
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     const users = await this.prisma.subscription.findMany({
       where: {
         verified: true,
@@ -49,7 +48,6 @@ export class SubscriptionCronService {
 
         this.logger.log(`Follow-up email sent to ${user.email}`);
 
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
         await this.prisma.subscription.update({
           where: { id: user.id },
           data: { followUpEmailSent: true },

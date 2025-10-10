@@ -6,22 +6,11 @@ import { randomBytes } from "crypto";
 
 // Define interfaces for type safety
 interface Score {
-  id: string;
+  id: number;
   name: string;
   email: string;
   score: number;
   createdAt: Date;
-  updatedAt: Date;
-}
-
-interface Subscription {
-  id: string;
-  email: string;
-  username: string;
-  verificationToken: string;
-  isVerified: boolean;
-  createdAt: Date;
-  updatedAt: Date;
 }
 
 @Injectable()
@@ -29,12 +18,10 @@ export class GameService {
   constructor(private prisma: PrismaService) {}
 
   async saveScore(name: string, email: string, score: number): Promise<Score> {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     const savedScore = await this.prisma.score.create({
       data: { name, email, score },
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     const existingSubscription = await this.prisma.subscription.findUnique({
       where: { email },
     });
@@ -42,7 +29,6 @@ export class GameService {
     if (!existingSubscription) {
       // If not subscribed, subscribe them
       const verificationToken = randomBytes(32).toString("hex");
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
       const subscription = await this.prisma.subscription.create({
         data: { email, username: name, verificationToken },
       });
@@ -58,20 +44,19 @@ export class GameService {
       });
 
       try {
-        const subscriptionData = subscription as Subscription;
         const data = await client.messages.create(
           process.env.MAILGUN_DOMAIN || "onenightbox.com",
           {
             from:
               process.env.EMAIL_FROM || "ONB Team <postmaster@onenightbox.com>",
-            to: [subscriptionData.email],
+            to: [subscription.email],
             subject: "Email Confirmation",
             template: "email confirm",
             "h:X-Mailgun-Variables": JSON.stringify({
-              email: subscriptionData.email,
+              email: subscription.email,
               url: process.env.FRONTEND_URL,
-              verificationToken: subscriptionData.verificationToken,
-              username: subscriptionData.username,
+              verificationToken: subscription.verificationToken,
+              username: subscription.username,
             }),
           },
         );
@@ -83,14 +68,13 @@ export class GameService {
         console.log("Email sending error:", errorMessage);
       }
     }
-    return savedScore as Score;
+    return savedScore;
   }
 
   async getTopScores(limit = 10): Promise<Score[]> {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-    return (await this.prisma.score.findMany({
+    return await this.prisma.score.findMany({
       orderBy: { score: "desc" },
       take: limit,
-    })) as Score[];
+    });
   }
 }

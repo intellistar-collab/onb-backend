@@ -47,7 +47,6 @@ export class SubscriptionService {
     const { email, username, referrerEmail } = dto;
 
     try {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
       const existing = await this.prisma.subscription.findUnique({
         where: { email },
       });
@@ -57,7 +56,6 @@ export class SubscriptionService {
       }
       const verificationToken = randomBytes(32).toString("hex");
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
       return (await this.prisma.subscription.create({
         data: {
           email,
@@ -80,7 +78,6 @@ export class SubscriptionService {
 
   async findOne(referrerEmail: string): Promise<FindOneResponse> {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
       const existing = await this.prisma.subscription.findUnique({
         where: { email: referrerEmail },
       });
@@ -95,11 +92,9 @@ export class SubscriptionService {
 
   async findAll(page = 1, limit = 10): Promise<PaginatedResponse> {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const [total, data] = await Promise.all([
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
         this.prisma.subscription.count(),
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+
         this.prisma.subscription.findMany({
           skip: (page - 1) * limit,
           take: limit,
@@ -108,7 +103,7 @@ export class SubscriptionService {
       ]);
 
       return {
-        total: total as number,
+        total: total,
         data: data as Subscription[],
       };
     } catch (error: unknown) {
@@ -121,7 +116,6 @@ export class SubscriptionService {
 
   async findAllUnpaginated(): Promise<Subscription[]> {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
       return (await this.prisma.subscription.findMany({
         orderBy: { createdAt: "desc" },
       })) as Subscription[];
@@ -132,7 +126,6 @@ export class SubscriptionService {
 
   async verifySubscription(token: string): Promise<SubscriptionResponse> {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
       const subscription = (await this.prisma.subscription.findFirst({
         where: {
           verificationToken: token,
@@ -147,7 +140,6 @@ export class SubscriptionService {
         return { message: "Email already verified" };
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
       const updated = (await this.prisma.subscription.update({
         where: { email: subscription.email },
         data: {
@@ -159,7 +151,6 @@ export class SubscriptionService {
 
       // If referrer exists and is verified, reward them with 1 point
       if (updated.referrerEmail) {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
         await this.prisma.subscription.updateMany({
           where: { email: updated.referrerEmail },
           data: { points: { increment: 1 } },

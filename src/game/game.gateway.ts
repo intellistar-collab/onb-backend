@@ -56,7 +56,7 @@ export class GameGateway
       await this.gameService.saveScore(data.name, data.email, data.score);
 
       // Get top 3 scores
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+
       const top3 = await this.gameService.getTopScores();
 
       console.log("🏆 Top 3 scores:", top3);
@@ -66,7 +66,7 @@ export class GameGateway
 
       return {
         status: "ok",
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+
         top3,
       };
     } catch (error: unknown) {
@@ -85,12 +85,11 @@ export class GameGateway
   @SubscribeMessage("getTopScores")
   async handleGetTopScores(): Promise<GameResponse> {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const top3 = await this.gameService.getTopScores();
 
       return {
         status: "ok",
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+
         top3,
       };
     } catch (error: unknown) {

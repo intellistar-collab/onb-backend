@@ -9,6 +9,7 @@ import * as bcrypt from "bcryptjs";
 
 import { randomBytes, randomInt } from "crypto";
 import { EmailService } from "src/common/services/email/email.service";
+import { CreateUserDto } from "../users/dto/create-user.dto";
 
 // Define user interface to avoid 'any' type warnings
 interface User {
@@ -22,6 +23,9 @@ interface User {
   refreshToken?: string | null;
   refreshTokenExpiry?: Date | null;
 }
+
+// Import User type from users service
+type UserFromService = Awaited<ReturnType<UsersService["findUserByEmail"]>>;
 
 @Injectable()
 export class AuthService {
@@ -65,11 +69,15 @@ export class AuthService {
   }
 
   // Step 4: Request OTP during Login
-  async requestOTP(email: string, password: string) {
+  async requestOTP(
+    email: string,
+    password: string,
+  ): Promise<{ message: string }> {
     const user = await this.validateUser(email, password);
     if (!user.requiresOTP) {
       // If OTP is not required, log in directly
-      return this.login(email, password);
+      await this.login(email, password);
+      return { message: "Login successful" };
     }
     const otp = this.generateOTP();
     const otpExpiry = new Date();
@@ -119,7 +127,14 @@ export class AuthService {
     };
   }
 
-  async login(email: string, password: string) {
+  async login(
+    email: string,
+    password: string,
+  ): Promise<{
+    access_token: string;
+    refresh_token: string;
+    user: UserFromService;
+  }> {
     const user = await this.validateUser(email, password);
     const refreshToken = this.generateRefreshToken();
     const refreshTokenExpiry = new Date();
@@ -130,9 +145,13 @@ export class AuthService {
       refreshTokenExpiry,
     });
 
+    // Get full user data
+    const fullUser = await this.usersService.findUserByEmail(email);
+
     return {
       access_token: this.jwtService.sign({ sub: user.id, role: user.role }),
       refresh_token: refreshToken,
+      user: fullUser,
     };
   }
 
@@ -169,6 +188,26 @@ export class AuthService {
 
     return {
       access_token: this.jwtService.sign({ sub: user.id, role: user.role }),
+    };
+  }
+
+  async signUp(createUserDto: CreateUserDto) {
+    // Set default role to USER if not provided
+    const userData = {
+      ...createUserDto,
+      role: createUserDto.role || "USER",
+    };
+
+    // Create the user using the UsersService
+    const user = await this.usersService.createUser(userData);
+
+    // Return user data without password
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password: _, ...userWithoutPassword } = user;
+
+    return {
+      user: userWithoutPassword,
+      message: "User created successfully",
     };
   }
 }

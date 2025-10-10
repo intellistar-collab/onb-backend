@@ -63,7 +63,6 @@ export class SubscriptionController {
     @Body(ValidationPipe) body: CreateSubscriptionDto,
   ): Promise<Subscription> {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const subscription = await this.subscriptionService.create(body);
       console.log("subscription data", subscription);
       await this.emailService.sendEmailWhenSubscribe(subscription);

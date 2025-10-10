@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateBoxDto } from "./dto/create-box.dto";
 import { UpdateBoxDto } from "./dto/update-box.dto";
+import { Decimal } from "@prisma/client/runtime/library";
 
 // Define interfaces to avoid 'any' type warnings
 interface Box {
@@ -9,17 +10,17 @@ interface Box {
   title: string;
   description?: string | null;
   location: string;
-  price: number;
+  price: Decimal;
   imageUrl: string;
   backgroundImage: string;
   isActive: boolean;
   order: number;
   boxCategoryId: string;
   purchasedCount: number;
-  totalRevenue: number;
-  totalPayout: number;
-  exchangeablePayout: number;
-  retainedProfitPercentage: number;
+  totalRevenue: Decimal;
+  totalPayout: Decimal;
+  exchangeablePayout: Decimal;
+  retainedProfitPercentage: Decimal;
   createdAt: Date;
   updatedAt: Date;
   items?: Item[];
@@ -30,8 +31,8 @@ interface Item {
   name: string;
   description?: string | null;
   imageUrl?: string | null;
-  price: number;
-  percentage: number;
+  price: Decimal | null;
+  percentage: Decimal;
   status: string;
   viewCount: number;
   clickCount: number;
@@ -68,17 +69,15 @@ export class BoxService {
   constructor(private prisma: PrismaService) {}
 
   create(data: CreateBoxDto): Promise<Box> {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     return this.prisma.box.create({
       data: {
         ...data,
         price: data.price,
       },
-    }) as Promise<Box>;
+    });
   }
 
   findAll(): Promise<Box[]> {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     return this.prisma.box.findMany({
       orderBy: { order: "asc" },
       include: {
@@ -88,40 +87,36 @@ export class BoxService {
           select: { items: true },
         },
       },
-    }) as Promise<Box[]>;
+    });
   }
 
   findOne(id: string): Promise<Box | null> {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     return this.prisma.box.findUnique({
       where: { id },
       include: { category: true, items: true },
-    }) as Promise<Box | null>;
+    });
   }
 
   update(id: string, data: UpdateBoxDto): Promise<Box> {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     return this.prisma.box.update({
       where: { id },
       data: {
         ...data,
         price: data.price,
       },
-    }) as Promise<Box>;
+    });
   }
 
   remove(id: string): Promise<Box> {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-    return this.prisma.box.delete({ where: { id } }) as Promise<Box>;
+    return this.prisma.box.delete({ where: { id } });
   }
 
   async spinBox(boxId: string): Promise<SpinResult> {
     // 1. Fetch box with items
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-    const box = (await this.prisma.box.findUnique({
+    const box = await this.prisma.box.findUnique({
       where: { id: boxId },
       include: { items: true },
-    })) as Box | null;
+    });
 
     if (!box || !box.items || box.items.length === 0) {
       throw new Error("Box not found or has no items");
@@ -129,7 +124,7 @@ export class BoxService {
 
     // 2. Build cumulative distribution
     let cumulative = 0;
-    const distribution = box.items.map((item: Item) => {
+    const distribution = box.items.map((item) => {
       cumulative += Number(item.percentage);
       return {
         id: item.id,
@@ -170,16 +165,13 @@ export class BoxService {
     const netProfit = newTotalRevenue - newTotalPayout + retainedProfit;
 
     // 5. Update DB
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
     await this.prisma.$transaction([
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
       this.prisma.item.update({
         where: { id: selected.id },
         data: {
           purchasedCount: { increment: 1 },
         },
       }),
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
       this.prisma.box.update({
         where: { id: boxId },
         data: {

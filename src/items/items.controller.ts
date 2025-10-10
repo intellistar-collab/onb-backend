@@ -16,6 +16,7 @@ import { UpdateItemDto } from "./dto/update-item.dto";
 import { ApiQuery, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { CloudflareService } from "src/common/services/email/cloudflare.service";
+import { Decimal } from "@prisma/client/runtime/library";
 
 // Define interfaces for type safety
 interface CloudflareUploadResult {
@@ -37,8 +38,8 @@ interface Item {
   name: string;
   description?: string | null;
   imageUrl?: string | null;
-  price: number;
-  percentage: number;
+  price: Decimal | null;
+  percentage: Decimal;
   status: string;
   viewCount: number;
   clickCount: number;

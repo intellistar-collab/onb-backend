@@ -21,12 +21,10 @@ export class BoxCategoryService {
   constructor(private prisma: PrismaService) {}
 
   create(data: CreateBoxCategoryDto): Promise<BoxCategory> {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     return this.prisma.boxCategory.create({ data }) as Promise<BoxCategory>;
   }
 
   findAll(): Promise<BoxCategory[]> {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     return this.prisma.boxCategory.findMany({
       orderBy: { order: "asc" },
       include: { boxes: true },
@@ -34,7 +32,6 @@ export class BoxCategoryService {
   }
 
   findOne(id: string): Promise<BoxCategory | null> {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     return this.prisma.boxCategory.findUnique({
       where: { id },
       include: { boxes: true },
@@ -42,7 +39,6 @@ export class BoxCategoryService {
   }
 
   update(id: string, data: UpdateBoxCategoryDto): Promise<BoxCategory> {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     return this.prisma.boxCategory.update({
       where: { id },
       data,
@@ -50,7 +46,6 @@ export class BoxCategoryService {
   }
 
   remove(id: string): Promise<BoxCategory> {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     return this.prisma.boxCategory.delete({
       where: { id },
     }) as Promise<BoxCategory>;

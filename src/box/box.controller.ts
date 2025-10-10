@@ -10,24 +10,25 @@ import {
 import { BoxService } from "./box.service";
 import { CreateBoxDto } from "./dto/create-box.dto";
 import { UpdateBoxDto } from "./dto/update-box.dto";
+import { Decimal } from "@prisma/client/runtime/library";
 
-// Define Box interface to avoid 'any' type warnings
+// Define Box interface to match service
 interface Box {
   id: string;
   title: string;
   description?: string | null;
   location: string;
-  price: number;
+  price: Decimal;
   imageUrl: string;
   backgroundImage: string;
   isActive: boolean;
   order: number;
   boxCategoryId: string;
   purchasedCount: number;
-  totalRevenue: number;
-  totalPayout: number;
-  exchangeablePayout: number;
-  retainedProfitPercentage: number;
+  totalRevenue: Decimal;
+  totalPayout: Decimal;
+  exchangeablePayout: Decimal;
+  retainedProfitPercentage: Decimal;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -38,27 +39,27 @@ export class BoxController {
 
   @Post()
   create(@Body() dto: CreateBoxDto): Promise<Box> {
-    return this.service.create(dto) as Promise<Box>;
+    return this.service.create(dto);
   }
 
   @Get()
   findAll(): Promise<Box[]> {
-    return this.service.findAll() as Promise<Box[]>;
+    return this.service.findAll();
   }
 
   @Get(":id")
   findOne(@Param("id") id: string): Promise<Box | null> {
-    return this.service.findOne(id) as Promise<Box | null>;
+    return this.service.findOne(id);
   }
 
   @Put(":id")
   update(@Param("id") id: string, @Body() dto: UpdateBoxDto): Promise<Box> {
-    return this.service.update(id, dto) as Promise<Box>;
+    return this.service.update(id, dto);
   }
 
   @Delete(":id")
   remove(@Param("id") id: string): Promise<Box> {
-    return this.service.remove(id) as Promise<Box>;
+    return this.service.remove(id);
   }
 
   @Post(":id/spin")
