@@ -22,11 +22,11 @@ import {
   ApiBody,
 } from "@nestjs/swagger";
 import { CreateUserDto } from "./dto/create-user.dto";
-import { AuthGuard } from "@nestjs/passport";
 import { Roles } from "../auth/roles.decorator";
 import { Role } from "../auth/role.enum";
 import { UpdateUserDto } from "./dto/update-user.dto";
-import { RolesGuard } from "../auth/roles.guard";
+import { BetterAuthGuard } from "../auth/better-auth.guard";
+import { BetterAuthRolesGuard } from "../auth/better-auth-roles.guard";
 import { CreatePasswordResetDto } from "./dto/create-password-reset.dto";
 import { ResetPasswordDto } from "./dto/reset-password.dto";
 
@@ -36,12 +36,12 @@ interface User {
   email: string;
   username: string;
   role: string;
-  firstName?: string;
-  lastName?: string;
-  avatar?: string;
-  address?: string;
-  mobile?: string;
-  location?: string;
+  firstName: string | null;
+  lastName: string | null;
+  avatar: string | null;
+  address: string | null;
+  mobile: string | null;
+  location: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -58,31 +58,37 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Post()
+  @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
   @ApiOperation({ summary: "Create a new user" })
   @ApiResponse({ status: 201, description: "User successfully created" })
   @ApiResponse({ status: 400, description: "Bad Request" })
   @ApiResponse({ status: 500, description: "Internal Server Error" })
   async createUser(@Body() createUserDto: CreateUserDto): Promise<User> {
     try {
-      // Create the user by passing the CreateUserDto object directly
-      return (await this.usersService.createUser(createUserDto)) as User;
+      return await this.usersService.createUser(createUserDto);
     } catch (error: unknown) {
-      console.log(error);
+      console.error("Error creating user:", error);
+
+      if (error instanceof HttpException) {
+        throw error;
+      }
+
       // Handle service layer errors
       const errorResponse = error as ErrorResponse;
       if (errorResponse.response && errorResponse.status) {
         throw new HttpException(errorResponse.response, errorResponse.status);
       }
+
       // Generic internal server error
       throw new HttpException(
-        "Internal Server Error",
+        "Failed to create user",
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
 
   @Delete(":id")
-  @UseGuards(AuthGuard("jwt"), RolesGuard)
+  @UseGuards(BetterAuthGuard, BetterAuthRolesGuard)
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: "Delete a user by ID" })
   @ApiParam({
@@ -96,43 +102,57 @@ export class UsersController {
   @ApiResponse({ status: 500, description: "Internal Server Error" })
   async deleteUser(@Param("id") id: string): Promise<{ message: string }> {
     try {
-      return (await this.usersService.deleteUser(id)) as { message: string };
+      return await this.usersService.deleteUser(id);
     } catch (error: unknown) {
+      console.error("Error deleting user:", error);
+
+      if (error instanceof HttpException) {
+        throw error;
+      }
+
       const errorResponse = error as ErrorResponse;
       if (errorResponse.response && errorResponse.status) {
         throw new HttpException(errorResponse.response, errorResponse.status);
       }
+
       throw new HttpException(
-        "Internal Server Error",
+        "Failed to delete user",
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
 
   @Get()
-  @UseGuards(AuthGuard("jwt"), RolesGuard)
+  @UseGuards(BetterAuthGuard, BetterAuthRolesGuard)
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: "Get all users" })
   @ApiResponse({ status: 200, description: "All users retrieved successfully" })
   @ApiResponse({ status: 500, description: "Internal Server Error" })
   async getAllUsers(): Promise<User[]> {
     try {
-      return (await this.usersService.getAllUsers()) as User[];
+      return await this.usersService.getAllUsers();
     } catch (error: unknown) {
+      console.error("Error fetching users:", error);
+
+      if (error instanceof HttpException) {
+        throw error;
+      }
+
       const errorResponse = error as ErrorResponse;
       if (errorResponse.response && errorResponse.status) {
         throw new HttpException(errorResponse.response, errorResponse.status);
       }
 
       throw new HttpException(
-        "Internal Server Error",
+        "Failed to fetch users",
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
 
   @Put(":id")
-  @ApiOperation({ summary: "Update user email or role" })
+  @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
+  @ApiOperation({ summary: "Update user information" })
   @ApiParam({ name: "id", description: "User ID", type: String })
   @ApiBody({ type: UpdateUserDto })
   @ApiResponse({ status: 200, description: "User updated successfully" })
@@ -144,14 +164,21 @@ export class UsersController {
     @Body() updateUserDto: UpdateUserDto,
   ): Promise<User> {
     try {
-      return (await this.usersService.updateUser(id, updateUserDto)) as User;
+      return await this.usersService.updateUser(id, updateUserDto);
     } catch (error: unknown) {
+      console.error("Error updating user:", error);
+
+      if (error instanceof HttpException) {
+        throw error;
+      }
+
       const errorResponse = error as ErrorResponse;
       if (errorResponse.response && errorResponse.status) {
         throw new HttpException(errorResponse.response, errorResponse.status);
       }
+
       throw new HttpException(
-        "Internal Server Error",
+        "Failed to update user",
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }

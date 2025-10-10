@@ -63,6 +63,8 @@ export class UsersService {
       email,
       role,
       username,
+      firstName,
+      lastName,
       avatar,
       address,
       mobile,
@@ -89,6 +91,8 @@ export class UsersService {
             email,
             role,
             username,
+            firstName,
+            lastName,
             avatar,
             address,
             mobile,
@@ -163,6 +167,7 @@ export class UsersService {
       email,
       role,
       username,
+      password,
       firstName,
       lastName,
       avatar,
@@ -198,6 +203,12 @@ export class UsersService {
       }
     }
 
+    // Hash password if provided
+    let hashedPassword: string | undefined;
+    if (password) {
+      hashedPassword = await bcrypt.hash(password, 10);
+    }
+
     try {
       return await this.prisma.users.update({
         where: { id },
@@ -205,6 +216,7 @@ export class UsersService {
           ...(email && { email }),
           ...(role && { role }),
           ...(username && { username }),
+          ...(hashedPassword && { password: hashedPassword }),
           ...(avatar && { avatar }),
           ...(address && { address }),
           ...(mobile && { mobile }),

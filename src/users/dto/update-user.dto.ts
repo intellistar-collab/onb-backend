@@ -23,6 +23,12 @@ export class UpdateUserDto {
   @Length(3, 50)
   username?: string;
 
+  @ApiProperty({ example: "newpassword123", required: false })
+  @IsOptional()
+  @IsString()
+  @Length(6, 20, { message: "Password should be between 6 and 20 characters" })
+  password?: string;
+
   @ApiProperty({ example: "new_firstName", required: false })
   @IsOptional()
   @IsString()

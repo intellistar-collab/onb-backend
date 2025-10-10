@@ -14,6 +14,18 @@ export class CreateUserDto {
   @IsNotEmpty()
   username: string;
 
+  @ApiProperty({ example: "John", description: "First Name", required: false })
+  @IsOptional()
+  @IsString()
+  @Length(2, 50)
+  firstName?: string;
+
+  @ApiProperty({ example: "Doe", description: "Last Name", required: false })
+  @IsOptional()
+  @IsString()
+  @Length(2, 50)
+  lastName?: string;
+
   @ApiProperty({ example: "user@gmail.com", description: "User email" })
   @IsEmail({}, { message: "Invalid email address" })
   email: string;

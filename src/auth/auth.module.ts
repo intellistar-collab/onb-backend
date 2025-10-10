@@ -9,6 +9,8 @@ import { JwtStrategy } from "./jwt.strategy";
 import { PassportModule } from "@nestjs/passport";
 import { UsersModule } from "../users/users.module";
 import { SubscriptionModule } from "src/subscription/subscription.module";
+import { BetterAuthGuard } from "./better-auth.guard";
+import { BetterAuthRolesGuard } from "./better-auth-roles.guard";
 
 @Module({
   imports: [
@@ -28,7 +30,7 @@ import { SubscriptionModule } from "src/subscription/subscription.module";
     }),
   ],
   controllers: [AuthController, BetterAuthController],
-  providers: [AuthService, JwtStrategy, EmailService],
-  exports: [AuthService],
+  providers: [AuthService, JwtStrategy, EmailService, BetterAuthGuard, BetterAuthRolesGuard],
+  exports: [AuthService, BetterAuthGuard, BetterAuthRolesGuard],
 })
 export class AuthModule {}
