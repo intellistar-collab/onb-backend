@@ -91,12 +91,14 @@ export class UsersService {
             email,
             role,
             username,
-            firstName,
-            lastName,
-            avatar,
-            address,
-            mobile,
-            location,
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+            firstName: firstName || null,
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+            lastName: lastName || null,
+            avatar: avatar || null,
+            address: address || null,
+            mobile: mobile || null,
+            location: location || null,
             password: hashedPassword,
           },
         });
@@ -205,7 +207,7 @@ export class UsersService {
 
     // Hash password if provided
     let hashedPassword: string | undefined;
-    if (password) {
+    if (password && typeof password === "string") {
       hashedPassword = await bcrypt.hash(password, 10);
     }
 
@@ -325,8 +327,16 @@ export class UsersService {
 
   async getAllUsers(): Promise<UserWithWallet[]> {
     return await this.prisma.users.findMany({
+      where: {
+        role: {
+          not: "ADMIN",
+        },
+      },
       include: {
         wallet: true,
+      },
+      orderBy: {
+        createdAt: "desc",
       },
     });
   }

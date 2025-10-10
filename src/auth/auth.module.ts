@@ -30,7 +30,13 @@ import { BetterAuthRolesGuard } from "./better-auth-roles.guard";
     }),
   ],
   controllers: [AuthController, BetterAuthController],
-  providers: [AuthService, JwtStrategy, EmailService, BetterAuthGuard, BetterAuthRolesGuard],
+  providers: [
+    AuthService,
+    JwtStrategy,
+    EmailService,
+    BetterAuthGuard,
+    BetterAuthRolesGuard,
+  ],
   exports: [AuthService, BetterAuthGuard, BetterAuthRolesGuard],
 })
 export class AuthModule {}
