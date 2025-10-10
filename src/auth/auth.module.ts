@@ -1,5 +1,5 @@
 import { EmailService } from "./../common/services/email/email.service";
-import { Module } from "@nestjs/common";
+import { Module, forwardRef } from "@nestjs/common";
 import { AuthService } from "./auth.service";
 import { AuthController } from "./auth.controller";
 import { BetterAuthController } from "./better-auth.controller";
@@ -15,7 +15,7 @@ import { BetterAuthRolesGuard } from "./better-auth-roles.guard";
 @Module({
   imports: [
     ConfigModule,
-    UsersModule,
+    forwardRef(() => UsersModule),
     PassportModule,
     SubscriptionModule,
     JwtModule.registerAsync({
