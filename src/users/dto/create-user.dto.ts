@@ -44,6 +44,16 @@ export class CreateUserDto {
   @IsEnum({ ADMIN: "ADMIN", USER: "USER", SUPER_ADMIN: "SUPER_ADMIN" })
   role: "ADMIN" | "USER" | "SUPER_ADMIN";
 
+  @ApiProperty({
+    example: "PENDING",
+    enum: ["PENDING", "ACTIVE", "DISABLED"],
+    description: "User status",
+    required: false,
+  })
+  @IsOptional()
+  @IsEnum({ PENDING: "PENDING", ACTIVE: "ACTIVE", DISABLED: "DISABLED" })
+  status?: "PENDING" | "ACTIVE" | "DISABLED";
+
   @ApiProperty({ example: "New Avatar URL", required: false })
   @IsOptional()
   @IsString()

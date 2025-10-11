@@ -151,6 +151,8 @@ export class UsersController {
   }
 
   @Put(":id")
+  @UseGuards(BetterAuthGuard, BetterAuthRolesGuard)
+  @Roles(Role.ADMIN)
   @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
   @ApiOperation({ summary: "Update user information" })
   @ApiParam({ name: "id", description: "User ID", type: String })

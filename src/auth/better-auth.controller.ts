@@ -148,19 +148,12 @@ export class BetterAuthController {
   @Get("get-session")
   async getSession(@Req() req: Request, @Res() res: Response): Promise<void> {
     try {
-      // Debug logging
-      console.log("get-session called");
-      console.log("req.cookies:", req.cookies);
-      console.log("req.headers.authorization:", req.headers.authorization);
-
       // Check for session token in cookies or headers
       const cookies = (req.cookies as Record<string, string>) || {};
       const sessionToken =
         cookies["better-auth.session_token"] ||
         cookies["session"] ||
         req.headers.authorization?.replace("Bearer ", "");
-
-      console.log("sessionToken found:", !!sessionToken);
 
       if (!sessionToken) {
         res.status(200).json({

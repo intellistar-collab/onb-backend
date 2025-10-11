@@ -16,6 +16,7 @@ interface User {
   email: string;
   username: string;
   role: string;
+  status?: string;
   firstName: string | null;
   lastName: string | null;
   avatar: string | null;
@@ -41,6 +42,7 @@ interface User {
 }
 
 interface UserWithWallet extends User {
+  status?: string;
   wallet?: {
     id: string;
     userId: string;
@@ -61,7 +63,7 @@ export class UsersService {
     // Input validation
     const {
       email,
-      role,
+      status,
       username,
       firstName,
       lastName,
@@ -85,23 +87,24 @@ export class UsersService {
 
     try {
       return await this.prisma.$transaction(async (prisma) => {
-        // Create the user
+        // Create the user - always set role to USER for admin panel user creation
+        /* eslint-disable @typescript-eslint/no-unsafe-assignment */
         const user = await prisma.users.create({
           data: {
             email,
-            role,
+            role: "USER", // Always set to USER for admin panel user creation
+            status: status || "PENDING", // Default to PENDING for new users
             username,
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
             firstName: firstName || null,
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
             lastName: lastName || null,
             avatar: avatar || null,
             address: address || null,
             mobile: mobile || null,
             location: location || null,
             password: hashedPassword,
-          },
+          } as any,
         });
+        /* eslint-enable @typescript-eslint/no-unsafe-assignment */
 
         // Create a wallet with 0 balance for the user
         await prisma.wallet.create({
@@ -167,7 +170,7 @@ export class UsersService {
   async updateUser(id: string, updateUserDto: UpdateUserDto): Promise<User> {
     const {
       email,
-      role,
+      status,
       username,
       password,
       firstName,
@@ -188,7 +191,7 @@ export class UsersService {
       zipCode,
       country,
     } = updateUserDto;
-    console.log("requiresOTP", requiresOTP);
+
     // Check if the user exists
     const user = await this.prisma.users.findUnique({ where: { id } });
     if (!user) {
@@ -212,11 +215,13 @@ export class UsersService {
     }
 
     try {
+      /* eslint-disable @typescript-eslint/no-unsafe-assignment */
       return await this.prisma.users.update({
         where: { id },
         data: {
           ...(email && { email }),
-          ...(role && { role }),
+          // Role is not updated - users remain as USER role
+          ...(status !== undefined && { status }),
           ...(username && { username }),
           ...(hashedPassword && { password: hashedPassword }),
           ...(avatar && { avatar }),
@@ -238,6 +243,7 @@ export class UsersService {
           ...(lastName && { lastName }),
         },
       });
+      /* eslint-enable @typescript-eslint/no-unsafe-assignment */
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";

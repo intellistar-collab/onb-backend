@@ -68,6 +68,16 @@ export class UpdateUserDto {
   role?: Role;
 
   @ApiProperty({
+    example: "ACTIVE",
+    enum: ["PENDING", "ACTIVE", "DISABLED"],
+    description: "User status",
+    required: false,
+  })
+  @IsOptional()
+  @IsEnum({ PENDING: "PENDING", ACTIVE: "ACTIVE", DISABLED: "DISABLED" })
+  status?: "PENDING" | "ACTIVE" | "DISABLED";
+
+  @ApiProperty({
     example: "123456",
     required: false,
     description: "6-digit OTP for verification",

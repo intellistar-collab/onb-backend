@@ -17,6 +17,7 @@ interface User {
   email: string;
   password: string;
   role: string;
+  status?: string;
   requiresOTP: boolean;
   otp?: string | null;
   otpExpiry?: Date | null;
@@ -44,6 +45,12 @@ export class AuthService {
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid)
       throw new UnauthorizedException("Invalid credentials");
+
+    // Check user status - only allow ACTIVE users to login
+    // Admin users are always allowed regardless of status
+    if (user.status === "DISABLED" && user.role !== "ADMIN") {
+      throw new UnauthorizedException("Account is disabled");
+    }
 
     // Check if user requires OTP for first login
     if (user.requiresOTP === true) {
