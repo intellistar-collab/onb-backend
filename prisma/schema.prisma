@@ -37,6 +37,8 @@ model Users {
   refreshToken       String?
   refreshTokenExpiry DateTime?
   wallet             Wallet?   @relation("UserWallet")
+  payments           Payment[]
+  cryptoWallets      CryptoWallet[]
 }
 
 model Wallet {
@@ -46,6 +48,7 @@ model Wallet {
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   transactions Transaction[]
+  payments     Payment[]
   user         Users         @relation("UserWallet", fields: [userId], references: [id], onDelete: Cascade)
 }
 
@@ -162,4 +165,131 @@ model Item {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// Payment Models
+model Payment {
+  id              String        @id @default(cuid())
+  userId          String
+  walletId        String
+  amount          Decimal       @db.Decimal(12, 2)
+  currency        String        @db.VarChar(10) // USD, EUR, BTC, ETH, USDT, etc.
+  paymentMethod   PaymentMethod
+  status          PaymentStatus @default(PENDING)
+  gateway         PaymentGateway
+  gatewayId       String?       @db.VarChar(255) // External payment provider ID
+  gatewayData     Json?         // Store additional payment provider data
+  description     String?       @db.VarChar(500)
+  
+  // Crypto specific fields
+  cryptoAddress   String?       @db.VarChar(255) // Generated wallet address
+  cryptoNetwork   String?       @db.VarChar(50)  // Bitcoin, Ethereum, Tron, etc.
+  confirmations   Int           @default(0)
+  requiredConfirmations Int     @default(1)
+  
+  // Fiat specific fields
+  cardLast4       String?       @db.VarChar(4)
+  cardBrand       String?       @db.VarChar(20)
+  billingAddress  Json?         // Store billing address as JSON
+  
+  // Timestamps
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  expiresAt       DateTime?     // For crypto payments
+  completedAt     DateTime?
+  
+  // Relations
+  user            Users         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  wallet          Wallet        @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  refunds         Refund[]
+  
+  @@index([userId])
+  @@index([status])
+  @@index([gateway])
+  @@index([createdAt])
+}
+
+model Refund {
+  id            String        @id @default(cuid())
+  paymentId     String
+  amount        Decimal       @db.Decimal(12, 2)
+  reason        String?       @db.VarChar(500)
+  status        RefundStatus  @default(PENDING)
+  gatewayRefundId String?     @db.VarChar(255) // External refund ID
+  gatewayData   Json?         // Store refund provider data
+  
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  processedAt   DateTime?
+  
+  // Relations
+  payment       Payment       @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  
+  @@index([paymentId])
+  @@index([status])
+}
+
+model CryptoWallet {
+  id            String        @id @default(cuid())
+  userId        String
+  currency      String        @db.VarChar(10) // BTC, ETH, USDT, etc.
+  address       String        @db.VarChar(255)
+  network       String        @db.VarChar(50) // Bitcoin, Ethereum, Tron, etc.
+  privateKey    String?       @db.VarChar(500) // Encrypted private key
+  isActive      Boolean       @default(true)
+  
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  
+  // Relations
+  user          Users         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, currency, network])
+  @@index([userId])
+  @@index([currency])
+}
+
+// Payment Enums
+enum PaymentMethod {
+  CREDIT_CARD
+  DEBIT_CARD
+  BANK_TRANSFER
+  PAYPAL
+  APPLE_PAY
+  GOOGLE_PAY
+  BITCOIN
+  ETHEREUM
+  USDT
+  USDC
+  LITECOIN
+  OTHER_CRYPTO
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+  EXPIRED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum PaymentGateway {
+  STRIPE
+  PAYPAL
+  COINBASE_COMMERCE
+  BITPAY
+  CRYPTO_COM
+  MOONPAY
+  MANUAL_CRYPTO
+}
+
+enum RefundStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
 }

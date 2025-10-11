@@ -12,6 +12,7 @@ import { ScheduleModule } from "@nestjs/schedule";
 import { BoxCategoryModule } from "./box-category/box-category.module";
 import { BoxModule } from "./box/box.module";
 import { ItemsModule } from "./items/items.module";
+import { PaymentModule } from "./payment/payment.module";
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { ItemsModule } from "./items/items.module";
     BoxCategoryModule,
     BoxModule,
     ItemsModule,
+    PaymentModule,
   ],
   controllers: [AppController],
   providers: [AppService, EmailService],
