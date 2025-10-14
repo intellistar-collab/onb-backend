@@ -4,33 +4,59 @@ import { PrismaService } from "src/prisma/prisma.service";
 import * as FormData from "form-data";
 import { randomBytes } from "crypto";
 
-// Define interfaces for type safety
-interface Score {
-  id: number;
-  name: string;
-  email: string;
-  score: number;
-  createdAt: Date;
-}
+// Using Prisma generated types instead of custom interface
 
 @Injectable()
 export class GameService {
   constructor(private prisma: PrismaService) {}
 
-  async saveScore(name: string, email: string, score: number): Promise<Score> {
+  async findUserById(userId: string): Promise<{
+    id: string;
+    email: string;
+    username: string;
+  } | null> {
+    return await this.prisma.users.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        username: true,
+      },
+    });
+  }
+
+  async saveScore(
+    userId: string,
+    score: number,
+    source: string = "game",
+  ): Promise<any> {
+    // Verify user exists
+    const user = await this.prisma.users.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new Error(`User with ID ${userId} not found`);
+    }
+
+    // Create score with new schema using Prisma client
     const savedScore = await this.prisma.score.create({
-      data: { name, email, score },
+      data: {
+        userId: userId,
+        score: score,
+        source: source,
+      },
     });
 
     const existingSubscription = await this.prisma.subscription.findUnique({
-      where: { email },
+      where: { email: user.email },
     });
 
     if (!existingSubscription) {
       // If not subscribed, subscribe them
       const verificationToken = randomBytes(32).toString("hex");
       const subscription = await this.prisma.subscription.create({
-        data: { email, username: name, verificationToken },
+        data: { email: user.email, username: user.username, verificationToken },
       });
 
       const mg = new Mailgun(FormData);
@@ -71,8 +97,16 @@ export class GameService {
     return savedScore;
   }
 
-  async getTopScores(limit = 10): Promise<Score[]> {
+  async getTopScores(limit = 10): Promise<any[]> {
     return await this.prisma.score.findMany({
+      include: {
+        user: {
+          select: {
+            username: true,
+            email: true,
+          },
+        },
+      },
       orderBy: { score: "desc" },
       take: limit,
     });

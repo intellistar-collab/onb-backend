@@ -8,36 +8,37 @@ datasource db {
 }
 
 model Users {
-  id                 String    @id @default(uuid())
-  firstName          String?   @db.VarChar(50)
-  lastName           String?   @db.VarChar(50)
-  dob                DateTime?
-  gender             String?   @db.VarChar(10)
-  username           String    @db.VarChar(50)
-  email              String    @unique @db.VarChar(100)
-  password           String    @db.VarChar(255)
+  id                 String     @id @default(uuid())
+  username           String     @db.VarChar(50)
+  email              String     @unique @db.VarChar(100)
+  password           String     @db.VarChar(255)
   avatar             String?
   address            String?
-  streetNumberOrName String?   @db.VarChar(100)
-  street             String?   @db.VarChar(100)
-  city               String?   @db.VarChar(100)
-  state              String?   @db.VarChar(100)
-  zipCode            String?   @db.VarChar(20)
-  country            String?   @db.VarChar(100)
-  mobile             String?   @db.VarChar(15)
+  mobile             String?    @db.VarChar(15)
   location           String?
-  role               Role      @default(USER)
-  status             UserStatus  @default(PENDING)
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
-  otp                String?   @db.VarChar(6)
+  role               Role       @default(USER)
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+  otp                String?    @db.VarChar(6)
   otpExpiry          DateTime?
-  requiresOTP        Boolean   @default(true)
-  resetToken         String?   @db.VarChar(255)
+  requiresOTP        Boolean    @default(true)
+  resetToken         String?    @db.VarChar(255)
   resetTokenExpiry   DateTime?
   refreshToken       String?
   refreshTokenExpiry DateTime?
-  wallet             Wallet?   @relation("UserWallet")
+  city               String?    @db.VarChar(100)
+  country            String?    @db.VarChar(100)
+  dob                DateTime?
+  firstName          String?    @db.VarChar(50)
+  gender             String?    @db.VarChar(10)
+  lastName           String?    @db.VarChar(50)
+  state              String?    @db.VarChar(100)
+  status             UserStatus @default(PENDING)
+  street             String?    @db.VarChar(100)
+  streetNumberOrName String?    @db.VarChar(100)
+  zipCode            String?    @db.VarChar(20)
+  wallet             Wallet?    @relation("UserWallet")
+  scores             Score[]    @relation("UserScore")
 }
 
 model Wallet {
@@ -72,6 +73,72 @@ model Subscription {
   followUpEmailSent Boolean   @default(false)
 }
 
+model Score {
+  id        Int      @id @default(autoincrement())
+  userId    String
+  score     Int
+  source    String
+  createdAt DateTime @default(now())
+  user      Users    @relation("UserScore", fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model BoxCategory {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  photo       String?
+  order       Int      @default(0)
+  color       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  boxes       Box[]
+
+  @@index([order])
+}
+
+model Box {
+  id                       String      @id @default(cuid())
+  title                    String
+  description              String?
+  location                 String
+  price                    Decimal     @db.Decimal(10, 2)
+  imageUrl                 String
+  backgroundImage          String
+  isActive                 Boolean     @default(true)
+  order                    Int         @default(0)
+  boxCategoryId            String
+  purchasedCount           Int         @default(0)
+  totalRevenue             Decimal     @default(0) @db.Decimal(12, 2)
+  totalPayout              Decimal     @default(0) @db.Decimal(12, 2)
+  exchangeablePayout       Decimal     @default(0) @db.Decimal(12, 2)
+  retainedProfitPercentage Decimal     @default(0) @db.Decimal(12, 2)
+  createdAt                DateTime    @default(now())
+  updatedAt                DateTime    @updatedAt
+  category                 BoxCategory @relation(fields: [boxCategoryId], references: [id])
+  items                    Item[]
+
+  @@index([boxCategoryId])
+  @@index([isActive, order])
+}
+
+model Item {
+  id             String     @id @default(cuid())
+  name           String
+  description    String?
+  imageUrl       String?
+  price          Decimal?
+  percentage     Decimal    @default(0)
+  status         ItemStatus
+  viewCount      Int        @default(0)
+  clickCount     Int        @default(0)
+  openedCount    Int        @default(0)
+  purchasedCount Int        @default(0)
+  boxId          String
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  box            Box        @relation(fields: [boxId], references: [id])
+}
+
 enum Role {
   SUPER_ADMIN
   ADMIN
@@ -89,84 +156,10 @@ enum TransactionType {
   DEBIT
 }
 
-model Score {
-  id        Int      @id @default(autoincrement())
-  name      String
-  email     String
-  score     Int
-  createdAt DateTime @default(now())
-}
-
-model BoxCategory {
-  id          String   @id @default(cuid())
-  name        String   @unique
-  description String?
-  photo       String?
-  order       Int      @default(0)
-  color       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  boxes Box[]
-
-  @@index([order])
-}
-
-model Box {
-  id              String  @id @default(cuid())
-  title           String
-  description     String?
-  location        String
-  price           Decimal @db.Decimal(10, 2)
-  imageUrl        String
-  backgroundImage String
-  isActive        Boolean @default(true)
-  order           Int     @default(0)
-
-  // Relations
-  boxCategoryId String
-  category      BoxCategory @relation(fields: [boxCategoryId], references: [id])
-  items         Item[]
-
-  // Analytics fields for future dashboard/insights
-  purchasedCount           Int     @default(0)
-  totalRevenue             Decimal @default(0) @db.Decimal(12, 2)
-  totalPayout              Decimal @default(0) @db.Decimal(12, 2)
-  exchangeablePayout       Decimal @default(0) @db.Decimal(12, 2)
-  retainedProfitPercentage Decimal @default(0) @db.Decimal(12, 2)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([boxCategoryId])
-  @@index([isActive, order])
-}
-
 enum ItemStatus {
   MOST_WANTED
   WANTED
   IN_DEMAND
   UNCOMMON
   COMMON
-}
-
-model Item {
-  id          String     @id @default(cuid())
-  name        String
-  description String?
-  imageUrl    String?
-  price       Decimal?
-  percentage  Decimal    @default(0)
-  status      ItemStatus
-
-  viewCount      Int @default(0)
-  clickCount     Int @default(0)
-  openedCount    Int @default(0)
-  purchasedCount Int @default(0)
-
-  boxId String
-  box   Box    @relation(fields: [boxId], references: [id])
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 }

@@ -111,7 +111,16 @@ export class UsersService {
           data: { userId: user.id, balance: 0 },
         });
 
-        return user; // Return user info (excluding wallet)
+        // Create a score entry for the user
+        await prisma.score.create({
+          data: {
+            userId: user.id,
+            score: 0, // Start with 0 score
+            source: "signup", // Source of the score
+          },
+        });
+
+        return user; // Return user info (excluding wallet and score)
       });
     } catch (error: unknown) {
       const errorMessage =
@@ -215,7 +224,6 @@ export class UsersService {
     }
 
     try {
-      /* eslint-disable @typescript-eslint/no-unsafe-assignment */
       return await this.prisma.users.update({
         where: { id },
         data: {
@@ -243,7 +251,6 @@ export class UsersService {
           ...(lastName && { lastName }),
         },
       });
-      /* eslint-enable @typescript-eslint/no-unsafe-assignment */
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";

@@ -190,4 +190,46 @@ export class AccountService {
       throw error;
     }
   }
+
+  async getWalletAndScore(userId: string) {
+    try {
+      // Get wallet
+      const wallet = await this.prisma.wallet.findUnique({
+        where: { userId },
+      });
+
+      if (!wallet) {
+        throw new Error("Wallet not found");
+      }
+
+      // Get latest score
+      const score = await this.prisma.score.findFirst({
+        where: { userId },
+        orderBy: { createdAt: "desc" },
+      });
+
+      if (!score) {
+        throw new Error("Score not found");
+      }
+
+      return {
+        wallet: {
+          id: wallet.id,
+          balance: Number(wallet.balance),
+          createdAt: wallet.createdAt,
+          updatedAt: wallet.updatedAt,
+        },
+        score: {
+          id: score.id,
+          score: score.score,
+          source: score.source,
+          createdAt: score.createdAt,
+        },
+      };
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      throw new Error(`Failed to get wallet and score: ${errorMessage}`);
+    }
+  }
 }

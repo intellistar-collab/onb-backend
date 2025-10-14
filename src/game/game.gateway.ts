@@ -11,9 +11,14 @@ import { Server, Socket } from "socket.io";
 import { GameService } from "./game.service";
 
 interface ScoreData {
-  name: string;
-  email: string;
+  userId: string;
   score: number;
+}
+
+interface User {
+  id: string;
+  email: string;
+  username: string;
 }
 
 interface GameResponse {
@@ -46,14 +51,22 @@ export class GameGateway
   @SubscribeMessage("submitScore")
   async handleScore(@MessageBody() data: ScoreData): Promise<GameResponse> {
     try {
-      if (!data.name || !data.email || typeof data.score !== "number") {
+      if (!data.userId || typeof data.score !== "number") {
         throw new Error("Invalid score submission data.");
       }
 
       console.log("📥 Received score:", data);
 
+      // Verify user exists, then save score
+      const user = (await this.gameService.findUserById(
+        data.userId,
+      )) as User | null;
+      if (!user) {
+        throw new Error(`User not found`);
+      }
+
       // Save score in DB
-      await this.gameService.saveScore(data.name, data.email, data.score);
+      await this.gameService.saveScore(data.userId, data.score, "game");
 
       // Get top 3 scores
 

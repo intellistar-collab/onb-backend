@@ -33,7 +33,6 @@ interface AuthenticatedRequest extends Request {
 @ApiTags("Account")
 @ApiBearerAuth()
 @Controller("api/account")
-// eslint-disable-next-line @typescript-eslint/no-unsafe-argument
 @UseGuards(BetterAuthGuard)
 export class AccountController {
   constructor(private readonly accountService: AccountService) {}
@@ -138,6 +137,33 @@ export class AccountController {
 
       throw new HttpException(
         "Failed to change password",
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Get("wallet-score")
+  @ApiOperation({ summary: "Get user wallet balance and score" })
+  @ApiResponse({
+    status: 200,
+    description: "Wallet and score retrieved successfully",
+  })
+  @ApiResponse({ status: 401, description: "Unauthorized" })
+  async getWalletAndScore(@Request() req: AuthenticatedRequest) {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        throw new HttpException(
+          "User not authenticated",
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
+      return await this.accountService.getWalletAndScore(userId);
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      throw new HttpException(
+        `Failed to get wallet and score: ${errorMessage}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
