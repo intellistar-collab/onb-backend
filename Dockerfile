@@ -15,6 +15,9 @@ RUN npm ci --ignore-scripts
 # Copy the rest of the application files into the container
 COPY . .
 
+# Generate Prisma client
+RUN npx prisma generate
+
 # Build the NestJS application
 RUN npm run build
 
@@ -34,6 +37,13 @@ RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 
 # Copy the built application from builder stage
 COPY --from=builder /usr/src/app/dist ./dist
+
+# Copy the generated Prisma client and schema
+COPY --from=builder /usr/src/app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /usr/src/app/prisma ./prisma
+
+# Generate Prisma client in production stage
+RUN npx prisma generate
 
 # Expose the application port (ensure this matches your application port)
 EXPOSE 8000
