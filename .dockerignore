@@ -14,3 +14,9 @@ coverage
 *.log
 dist
 build
+.husky
+.vscode
+.idea
+*.swp
+*.swo
+*~
