@@ -102,13 +102,15 @@ export class BetterAuthController {
       const result = await this.authService.login(email, password);
       const isHttps = (process.env.FRONTEND_URL || "").startsWith("https");
 
-      // Set session cookie
+      // Set session cookie with performance optimizations
       const cookieOptions = {
         httpOnly: true,
         secure: isHttps,
         sameSite: isHttps ? ("none" as const) : ("lax" as const),
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
         path: "/",
+        // Performance optimizations
+        priority: "high" as const, // High priority for faster cookie processing
       };
 
       res.cookie(
