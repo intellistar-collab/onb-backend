@@ -21,10 +21,16 @@ async function bootstrap() {
 
   // Enable CORS with custom configuration
   app.enableCors({
-    origin: [process.env.FRONTEND_URL || "http://localhost:3000"], // Replace with actual frontend domains
-    methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
-    allowedHeaders: "Content-Type, Authorization",
+    origin: [
+      process.env.FRONTEND_URL || "http://localhost:3000",
+      "http://localhost:3000", // Always allow localhost for development
+      "https://localhost:3000", // Allow HTTPS localhost
+    ],
+    methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
+    allowedHeaders: "Content-Type, Authorization, Cookie",
     credentials: true, // Enables credentials (cookies, authorization headers)
+    preflightContinue: false,
+    optionsSuccessStatus: 204,
   });
 
   // Enable global validation pipes
