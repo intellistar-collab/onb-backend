@@ -100,13 +100,13 @@ export class BetterAuthController {
 
       // Login using existing service
       const result = await this.authService.login(email, password);
+      const isHttps = (process.env.FRONTEND_URL || "").startsWith("https");
 
       // Set session cookie
       const cookieOptions = {
         httpOnly: true,
-        secure:
-          process.env.NODE_ENV === "production" && !!process.env.FRONTEND_URL,
-        sameSite: "lax" as const,
+        secure: isHttps,
+        sameSite: isHttps ? ("none" as const) : ("lax" as const),
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
         path: "/",
       };
@@ -220,11 +220,12 @@ export class BetterAuthController {
   @Post("sign-out")
   signOut(@Res() res: Response): void {
     try {
+      const isHttps = (process.env.FRONTEND_URL || "").startsWith("https");
       // Clear the session cookie
       res.clearCookie("better-auth.session_token", {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
+        secure: isHttps,
+        sameSite: isHttps ? ("none" as const) : ("lax" as const),
         path: "/",
       });
 

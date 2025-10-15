@@ -29,8 +29,6 @@ async function bootstrap() {
     methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
     allowedHeaders: "Content-Type, Authorization, Cookie",
     credentials: true, // Enables credentials (cookies, authorization headers)
-    preflightContinue: false,
-    optionsSuccessStatus: 204,
   });
 
   // Enable global validation pipes
