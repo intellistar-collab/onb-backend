@@ -8,7 +8,9 @@ WORKDIR /usr/src/app
 COPY package*.json ./
 
 # Install all dependencies (including dev dependencies for build)
-RUN npm ci
+# Disable husky in Docker build
+ENV HUSKY=0
+RUN npm ci --ignore-scripts
 
 # Copy the rest of the application files into the container
 COPY . .
@@ -25,8 +27,10 @@ WORKDIR /usr/src/app
 # Copy package.json and package-lock.json
 COPY package*.json ./
 
-# Install only production dependencies
-RUN npm ci --only=production && npm cache clean --force
+# Install only production dependencies (disable husky and other scripts)
+ENV HUSKY=0
+ENV NODE_ENV=production
+RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 
 # Copy the built application from builder stage
 COPY --from=builder /usr/src/app/dist ./dist
