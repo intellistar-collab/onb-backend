@@ -1,5 +1,5 @@
-# Use an official Node.js runtime as a parent image
-FROM node:20.11.0-alpine3.22
+# Build stage
+FROM node:20-alpine AS builder
 
 # Set the working directory inside the container
 WORKDIR /usr/src/app
@@ -7,8 +7,8 @@ WORKDIR /usr/src/app
 # Copy package.json and package-lock.json (or yarn.lock) to the working directory
 COPY package*.json ./
 
-# Install the dependencies
-RUN npm install
+# Install all dependencies (including dev dependencies for build)
+RUN npm ci
 
 # Copy the rest of the application files into the container
 COPY . .
@@ -16,12 +16,26 @@ COPY . .
 # Build the NestJS application
 RUN npm run build
 
+# Production stage
+FROM node:20-alpine AS production
+
+# Set the working directory inside the container
+WORKDIR /usr/src/app
+
+# Copy package.json and package-lock.json
+COPY package*.json ./
+
+# Install only production dependencies
+RUN npm ci --only=production && npm cache clean --force
+
+# Copy the built application from builder stage
+COPY --from=builder /usr/src/app/dist ./dist
+
 # Expose the application port (ensure this matches your application port)
 EXPOSE 8000
 
 # Set environment variables (optional, if you need specific ones in production)
-ENV DATABASE_URL="postgresql://postgres:Ay@it2022@localhost:5432/one-box-night"
-ENV JWT_SECRET="your_secret_key"
+ENV NODE_ENV=production
 ENV PORT=8000
 
 # Run the application
