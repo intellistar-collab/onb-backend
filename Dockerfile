@@ -53,4 +53,4 @@ ENV NODE_ENV=production
 ENV PORT=8000
 
 # Sync database schema and start the application
-CMD ["sh", "-c", "npx prisma db push --accept-data-loss && npm run start"]
+CMD ["sh", "-c", "npx prisma db push --accept-data-loss && npm run start:prod"]
