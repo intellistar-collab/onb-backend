@@ -52,5 +52,5 @@ EXPOSE 8000
 ENV NODE_ENV=production
 ENV PORT=8000
 
-# Run the application
-CMD ["npm", "run", "start:prod"]
+# Run database migrations and start the application
+CMD ["sh", "-c", "npx prisma migrate deploy && npm run start"]
