@@ -94,6 +94,7 @@ export class BetterAuthController {
   @Post("sign-in/email")
   async signInEmail(
     @Body() body: SignInRequest,
+    @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
     try {
@@ -119,6 +120,21 @@ export class BetterAuthController {
         result.access_token,
         cookieOptions,
       );
+
+      // Debug logging for deployment troubleshooting
+      console.log("🔐 Sign-in Debug Info:", {
+        userId: result.user?.id,
+        email: result.user?.email,
+        tokenLength: result.access_token?.length,
+        isHttps,
+        frontendUrl: process.env.FRONTEND_URL,
+        cookieOptions,
+        headers: {
+          origin: req.headers.origin || "unknown",
+          referer: req.headers.referer || "unknown",
+          host: req.headers.host || "unknown",
+        },
+      });
 
       // Return better-auth compatible response
       const response: BetterAuthResponse = {
