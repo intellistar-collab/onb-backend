@@ -172,6 +172,21 @@ export class AuthService {
     }
   }
 
+  decodeToken(token: string): any {
+    try {
+      // Decode without verification (for expired tokens)
+      return this.jwtService.decode(token);
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      throw new Error(`Failed to decode token: ${errorMessage}`);
+    }
+  }
+
+  generateToken(payload: { sub: string; role: string }): string {
+    return this.jwtService.sign(payload);
+  }
+
   generateRefreshToken(): string {
     return randomBytes(64).toString("hex");
   }

@@ -1,9 +1,18 @@
-import { Controller, Post, Get, Body, Res, Req } from "@nestjs/common";
+import {
+  Controller,
+  Post,
+  Get,
+  Body,
+  Res,
+  Req,
+  HttpStatus,
+  HttpException,
+} from "@nestjs/common";
 import { Response, Request } from "express";
 import { AuthService } from "./auth.service";
 import { UsersService } from "../users/users.service";
 
-// Define interfaces for better type safety
+// Types
 interface SignUpRequest {
   email: string;
   password: string;
@@ -13,6 +22,12 @@ interface SignUpRequest {
 interface SignInRequest {
   email: string;
   password: string;
+}
+
+interface TokenPayload {
+  sub: string;
+  role: string;
+  exp?: number;
 }
 
 interface BetterAuthUser {
@@ -37,9 +52,22 @@ interface BetterAuthResponse {
   session: BetterAuthSession | null;
 }
 
-interface BetterAuthErrorResponse {
-  message: string;
+interface UserData {
+  id: string;
+  email: string;
+  username: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  role?: string;
+  avatar?: string | null;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
+
+// Constants
+const SESSION_COOKIE_NAME = "better-auth.session_token";
+const TOKEN_EXPIRY_DAYS = 7;
+const TOKEN_EXPIRY_MS = TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
 
 @Controller("api/auth")
 export class BetterAuthController {
@@ -47,6 +75,67 @@ export class BetterAuthController {
     private readonly authService: AuthService,
     private readonly usersService: UsersService,
   ) {}
+
+  private isHttps(): boolean {
+    return (process.env.FRONTEND_URL || "").startsWith("https");
+  }
+
+  private getCookieOptions() {
+    return {
+      httpOnly: true,
+      secure: this.isHttps(),
+      sameSite: this.isHttps() ? ("none" as const) : ("lax" as const),
+      maxAge: TOKEN_EXPIRY_MS,
+      path: "/",
+      domain: this.isHttps() ? ".render.com" : undefined,
+    };
+  }
+
+  private extractToken(req: Request): string | null {
+    // Try Authorization header first
+    const authHeader = req.headers.authorization;
+    if (typeof authHeader === "string" && authHeader.startsWith("Bearer ")) {
+      return authHeader.replace("Bearer ", "");
+    }
+
+    // Fallback to cookie
+    const cookies = req.cookies as Record<string, string> | undefined;
+    return cookies?.[SESSION_COOKIE_NAME] || null;
+  }
+
+  private createUserResponse(user: any): BetterAuthUser {
+    const userData = user as UserData;
+    return {
+      id: userData.id || "",
+      email: userData.email || "",
+      username: userData.username || "",
+      firstName: userData.firstName || "",
+      lastName: userData.lastName || "",
+      role: userData.role || "USER",
+      avatar: userData.avatar || null,
+      createdAt: userData.createdAt || new Date(),
+      updatedAt: userData.updatedAt || new Date(),
+    };
+  }
+
+  private createSessionResponse(
+    token: string,
+    expiresAt?: Date,
+  ): BetterAuthSession {
+    return {
+      token,
+      expiresAt: expiresAt || new Date(Date.now() + TOKEN_EXPIRY_MS),
+    };
+  }
+
+  private handleError(
+    error: unknown,
+    defaultMessage: string,
+    statusCode: number = HttpStatus.INTERNAL_SERVER_ERROR,
+  ): never {
+    const message = error instanceof Error ? error.message : defaultMessage;
+    throw new HttpException({ message }, statusCode);
+  }
 
   @Post("sign-up/email")
   async signUpEmail(
@@ -56,38 +145,21 @@ export class BetterAuthController {
     try {
       const { email, password, username } = body;
 
-      // Create user using existing service
       const user = await this.usersService.createUser({
         email,
         password,
         username: username || email.split("@")[0],
-        role: "USER", // Default role for new users
+        role: "USER",
       });
 
-      // Return better-auth compatible response
       const response: BetterAuthResponse = {
-        user: {
-          id: user.id,
-          email: user.email,
-          username: user.username,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          role: user.role,
-          avatar: user.avatar,
-          createdAt: user.createdAt,
-          updatedAt: user.updatedAt,
-        },
-        session: null, // No session created on signup
+        user: this.createUserResponse(user),
+        session: null, // No session on signup
       };
 
-      res.status(201).json(response);
-    } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Signup failed";
-      const errorResponse: BetterAuthErrorResponse = {
-        message: errorMessage,
-      };
-      res.status(400).json(errorResponse);
+      res.status(HttpStatus.CREATED).json(response);
+    } catch (error) {
+      this.handleError(error, "Signup failed", HttpStatus.BAD_REQUEST);
     }
   }
 
@@ -100,175 +172,145 @@ export class BetterAuthController {
     try {
       const { email, password } = body;
 
-      // Login using existing service
       const result = await this.authService.login(email, password);
-      const isHttps = (process.env.FRONTEND_URL || "").startsWith("https");
 
-      // Set session cookie with deployment-friendly settings
-      const cookieOptions = {
-        httpOnly: true,
-        secure: isHttps,
-        sameSite: isHttps ? ("none" as const) : ("lax" as const),
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-        path: "/",
-        // Set domain for Render deployment
-        domain: isHttps ? ".render.com" : undefined,
-      };
-
+      // Set secure session cookie
       res.cookie(
-        "better-auth.session_token",
+        SESSION_COOKIE_NAME,
         result.access_token,
-        cookieOptions,
+        this.getCookieOptions(),
       );
 
-      // Debug logging for deployment troubleshooting
-      console.log("🔐 Sign-in Debug Info:", {
-        userId: result.user?.id,
-        email: result.user?.email,
-        tokenLength: result.access_token?.length,
-        isHttps,
-        frontendUrl: process.env.FRONTEND_URL,
-        cookieOptions,
-        headers: {
-          origin: req.headers.origin || "unknown",
-          referer: req.headers.referer || "unknown",
-          host: req.headers.host || "unknown",
-        },
+      const response: BetterAuthResponse = {
+        user: this.createUserResponse(result.user),
+        session: this.createSessionResponse(result.access_token),
+      };
+
+      res.status(HttpStatus.OK).json(response);
+    } catch (error) {
+      this.handleError(error, "Login failed", HttpStatus.UNAUTHORIZED);
+    }
+  }
+
+  @Post("refresh")
+  async refreshToken(@Req() req: Request, @Res() res: Response): Promise<void> {
+    try {
+      const token = this.extractToken(req);
+      if (!token) {
+        throw new HttpException(
+          { message: "No token provided" },
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
+
+      // Try to verify token, fallback to decode if expired
+      let userData: TokenPayload;
+      try {
+        userData = (await this.authService.verifyToken(token)) as TokenPayload;
+      } catch {
+        // Token expired, try to decode without verification
+        try {
+          userData = this.authService.decodeToken(token) as TokenPayload;
+        } catch {
+          throw new HttpException(
+            { message: "Invalid token" },
+            HttpStatus.UNAUTHORIZED,
+          );
+        }
+      }
+
+      // Generate new token
+      const newToken = this.authService.generateToken({
+        sub: userData.sub,
+        role: userData.role || "USER",
       });
 
-      // Return better-auth compatible response
-      const response: BetterAuthResponse = {
-        user: {
-          id: result.user?.id || "",
-          email: result.user?.email || "",
-          username: result.user?.username || "",
-          firstName: result.user?.firstName || null,
-          lastName: result.user?.lastName || null,
-          role: result.user?.role || "USER",
-          avatar: result.user?.avatar || null,
-          createdAt: result.user?.createdAt || new Date(),
-          updatedAt: result.user?.updatedAt || new Date(),
-        },
-        session: {
-          token: result.access_token,
-          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-        },
-      };
+      // Set new cookie
+      res.cookie(SESSION_COOKIE_NAME, newToken, this.getCookieOptions());
 
-      res.status(200).json(response);
-    } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Login failed";
-      const errorResponse: BetterAuthErrorResponse = {
-        message: errorMessage,
-      };
-      res.status(401).json(errorResponse);
+      res.status(HttpStatus.OK).json({
+        token: newToken,
+        expiresAt: new Date(Date.now() + TOKEN_EXPIRY_MS),
+      });
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      this.handleError(error, "Token refresh failed", HttpStatus.UNAUTHORIZED);
     }
   }
 
   @Get("get-session")
   async getSession(@Req() req: Request, @Res() res: Response): Promise<void> {
     try {
-      // Check for session token in cookies or headers
-      const cookies = (req.cookies as Record<string, string>) || {};
-      const sessionToken =
-        cookies["better-auth.session_token"] ||
-        cookies["session"] ||
-        req.headers.authorization?.replace("Bearer ", "");
-
-      // Debug logging for deployment troubleshooting
-      console.log("Get session request:", {
-        cookies: Object.keys(cookies),
-        hasSessionToken: !!sessionToken,
-        userAgent: req.headers["user-agent"],
-        origin: req.headers.origin,
-        referer: req.headers.referer,
-      });
+      const sessionToken = this.extractToken(req);
 
       if (!sessionToken) {
-        res.status(200).json({
+        res.status(HttpStatus.OK).json({
           user: null,
           session: null,
         });
         return;
       }
 
-      // Verify the token and get user data
       try {
-        const decoded = (await this.authService.verifyToken(sessionToken)) as {
-          sub: string;
-          exp: number;
-        };
-        const userId = decoded.sub;
-        const user = await this.usersService.findUserById(userId);
+        const decoded = (await this.authService.verifyToken(
+          sessionToken,
+        )) as TokenPayload;
+        const user = await this.usersService.findUserById(decoded.sub);
 
         if (!user) {
-          res.status(200).json({
+          res.status(HttpStatus.OK).json({
             user: null,
             session: null,
           });
           return;
         }
 
-        // Return better-auth compatible response
         const response: BetterAuthResponse = {
-          user: {
-            id: user.id,
-            email: user.email,
-            username: user.username,
-            firstName: user.firstName,
-            lastName: user.lastName,
-            role: user.role,
-            avatar: user.avatar,
-            createdAt: user.createdAt,
-            updatedAt: user.updatedAt,
-          },
-          session: {
-            token: sessionToken,
-            expiresAt: new Date(decoded.exp * 1000),
-          },
+          user: this.createUserResponse(user),
+          session: this.createSessionResponse(
+            sessionToken,
+            new Date(decoded.exp! * 1000),
+          ),
         };
 
-        res.status(200).json(response);
+        res.status(HttpStatus.OK).json(response);
       } catch {
-        // Token is invalid or expired
-        res.status(200).json({
+        // Token invalid or expired
+        res.status(HttpStatus.OK).json({
           user: null,
           session: null,
         });
       }
-    } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Session check failed";
-      const errorResponse: BetterAuthErrorResponse = {
-        message: errorMessage,
-      };
-      res.status(500).json(errorResponse);
+    } catch (error) {
+      this.handleError(
+        error,
+        "Session check failed",
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
   @Post("sign-out")
   signOut(@Res() res: Response): void {
     try {
-      const isHttps = (process.env.FRONTEND_URL || "").startsWith("https");
-      // Clear the session cookie
-      res.clearCookie("better-auth.session_token", {
+      res.clearCookie(SESSION_COOKIE_NAME, {
         httpOnly: true,
-        secure: isHttps,
-        sameSite: isHttps ? ("none" as const) : ("lax" as const),
+        secure: this.isHttps(),
+        sameSite: this.isHttps() ? ("none" as const) : ("lax" as const),
         path: "/",
       });
 
-      res.status(200).json({
+      res.status(HttpStatus.OK).json({
         message: "Signed out successfully",
       });
-    } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Sign out failed";
-      const errorResponse: BetterAuthErrorResponse = {
-        message: errorMessage,
-      };
-      res.status(500).json(errorResponse);
+    } catch (error) {
+      this.handleError(
+        error,
+        "Sign out failed",
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 }

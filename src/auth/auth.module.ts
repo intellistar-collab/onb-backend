@@ -25,7 +25,7 @@ import { BetterAuthRolesGuard } from "./better-auth-roles.guard";
         secret:
           configService.get("JWT_SECRET") ||
           "fallback-jwt-secret-for-development-only",
-        signOptions: { expiresIn: "1h" },
+        signOptions: { expiresIn: "7d" }, // 7 days for better user experience
       }),
     }),
   ],
