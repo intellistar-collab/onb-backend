@@ -103,15 +103,15 @@ export class BetterAuthController {
       const result = await this.authService.login(email, password);
       const isHttps = (process.env.FRONTEND_URL || "").startsWith("https");
 
-      // Set session cookie with performance optimizations
+      // Set session cookie with deployment-friendly settings
       const cookieOptions = {
         httpOnly: true,
         secure: isHttps,
         sameSite: isHttps ? ("none" as const) : ("lax" as const),
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
         path: "/",
-        // Performance optimizations
-        priority: "high" as const, // High priority for faster cookie processing
+        // Set domain for Render deployment
+        domain: isHttps ? ".render.com" : undefined,
       };
 
       res.cookie(
@@ -159,6 +159,15 @@ export class BetterAuthController {
         cookies["better-auth.session_token"] ||
         cookies["session"] ||
         req.headers.authorization?.replace("Bearer ", "");
+
+      // Debug logging for deployment troubleshooting
+      console.log("Get session request:", {
+        cookies: Object.keys(cookies),
+        hasSessionToken: !!sessionToken,
+        userAgent: req.headers["user-agent"],
+        origin: req.headers.origin,
+        referer: req.headers.referer,
+      });
 
       if (!sessionToken) {
         res.status(200).json({

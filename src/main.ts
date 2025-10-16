@@ -25,10 +25,14 @@ async function bootstrap() {
       process.env.FRONTEND_URL || "http://localhost:3000",
       "http://localhost:3000", // Always allow localhost for development
       "https://localhost:3000", // Allow HTTPS localhost
+      "https://*.render.com", // Allow Render deployments
+      "https://*.vercel.app", // Allow Vercel deployments
     ],
     methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
-    allowedHeaders: "Content-Type, Authorization, Cookie",
+    allowedHeaders: "Content-Type, Authorization, Cookie, X-Requested-With",
     credentials: true, // Enables credentials (cookies, authorization headers)
+    preflightContinue: false,
+    optionsSuccessStatus: 204,
   });
 
   // Enable global validation pipes
