@@ -27,36 +27,17 @@ export class BetterAuthGuard implements CanActivate {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       (request.headers.authorization as string)?.replace("Bearer ", "");
 
-    console.log("BetterAuthGuard: Available cookies:", Object.keys(cookies));
-    console.log(
-      "BetterAuthGuard: Authorization header:",
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      request.headers.authorization as string,
-    );
-    console.log("BetterAuthGuard: Session token found:", !!sessionToken);
-
     if (!sessionToken) {
       throw new UnauthorizedException("No authentication token provided");
     }
 
     try {
-      // Debug logging
-      console.log(
-        "BetterAuthGuard: Verifying token:",
-        sessionToken?.substring(0, 20) + "...",
-      );
-
       // Verify the token
       const decoded = (await this.authService.verifyToken(sessionToken)) as {
         sub: string;
         exp: number;
         role?: string;
       };
-
-      console.log("BetterAuthGuard: Token decoded successfully:", {
-        sub: decoded.sub,
-        exp: decoded.exp,
-      });
 
       // Check if token is expired
       if (decoded.exp && decoded.exp < Date.now() / 1000) {
