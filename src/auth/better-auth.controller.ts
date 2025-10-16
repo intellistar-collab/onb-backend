@@ -87,8 +87,17 @@ export class BetterAuthController {
       sameSite: this.isHttps() ? ("none" as const) : ("lax" as const),
       maxAge: TOKEN_EXPIRY_MS,
       path: "/",
-      domain: this.isHttps() ? ".render.com" : undefined,
+      // Don't set domain for localhost, only for production domains
+      domain: this.isHttps() && !this.isLocalhost() ? ".render.com" : undefined,
     };
+  }
+
+  private isLocalhost(): boolean {
+    return (
+      process.env.NODE_ENV === "development" ||
+      (process.env.FRONTEND_URL?.includes("localhost") ?? false) ||
+      (process.env.FRONTEND_URL?.includes("127.0.0.1") ?? false)
+    );
   }
 
   private extractToken(req: Request): string | null {
