@@ -7,7 +7,6 @@ import { UsersService } from "../users/users.service";
 interface SignUpRequest {
   email: string;
   password: string;
-  name?: string;
   username?: string;
 }
 
@@ -19,8 +18,9 @@ interface SignInRequest {
 interface BetterAuthUser {
   id: string;
   email: string;
-  name: string;
   username: string;
+  firstName: string | null;
+  lastName: string | null;
   role: string;
   avatar: string | null;
   createdAt: Date;
@@ -54,13 +54,13 @@ export class BetterAuthController {
     @Res() res: Response,
   ): Promise<void> {
     try {
-      const { email, password, name, username } = body;
+      const { email, password, username } = body;
 
       // Create user using existing service
       const user = await this.usersService.createUser({
         email,
         password,
-        username: name || username || email.split("@")[0],
+        username: username || email.split("@")[0],
         role: "USER", // Default role for new users
       });
 
@@ -69,8 +69,9 @@ export class BetterAuthController {
         user: {
           id: user.id,
           email: user.email,
-          name: user.username,
           username: user.username,
+          firstName: user.firstName,
+          lastName: user.lastName,
           role: user.role,
           avatar: user.avatar,
           createdAt: user.createdAt,
@@ -124,8 +125,9 @@ export class BetterAuthController {
         user: {
           id: result.user?.id || "",
           email: result.user?.email || "",
-          name: result.user?.username || "",
           username: result.user?.username || "",
+          firstName: result.user?.firstName || null,
+          lastName: result.user?.lastName || null,
           role: result.user?.role || "USER",
           avatar: result.user?.avatar || null,
           createdAt: result.user?.createdAt || new Date(),
@@ -188,8 +190,9 @@ export class BetterAuthController {
           user: {
             id: user.id,
             email: user.email,
-            name: user.username,
             username: user.username,
+            firstName: user.firstName,
+            lastName: user.lastName,
             role: user.role,
             avatar: user.avatar,
             createdAt: user.createdAt,
