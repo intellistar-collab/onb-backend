@@ -13,6 +13,7 @@ import { BoxCategoryModule } from "./box-category/box-category.module";
 import { BoxModule } from "./box/box.module";
 import { ItemsModule } from "./items/items.module";
 import { AccountModule } from "./account/account.module";
+import { InventoryModule } from "./inventory/inventory.module";
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { AccountModule } from "./account/account.module";
     BoxModule,
     ItemsModule,
     AccountModule,
+    InventoryModule,
   ],
   controllers: [AppController],
   providers: [AppService, EmailService],

@@ -37,8 +37,9 @@ model Users {
   street             String?    @db.VarChar(100)
   streetNumberOrName String?    @db.VarChar(100)
   zipCode            String?    @db.VarChar(20)
-  wallet             Wallet?    @relation("UserWallet")
-  scores             Score[]    @relation("UserScore")
+  wallet             Wallet?         @relation("UserWallet")
+  scores             Score[]         @relation("UserScore")
+  inventoryItems     InventoryItem[] @relation("UserInventory")
 }
 
 model Wallet {
@@ -114,8 +115,9 @@ model Box {
   retainedProfitPercentage Decimal     @default(0) @db.Decimal(12, 2)
   createdAt                DateTime    @default(now())
   updatedAt                DateTime    @updatedAt
-  category                 BoxCategory @relation(fields: [boxCategoryId], references: [id])
+  category                 BoxCategory     @relation(fields: [boxCategoryId], references: [id])
   items                    Item[]
+  inventoryItems           InventoryItem[] @relation("BoxInventory")
 
   @@index([boxCategoryId])
   @@index([isActive, order])
@@ -136,7 +138,8 @@ model Item {
   boxId          String
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
-  box            Box        @relation(fields: [boxId], references: [id])
+  box            Box             @relation(fields: [boxId], references: [id])
+  inventoryItems InventoryItem[] @relation("ItemInventory")
 }
 
 enum Role {
@@ -162,4 +165,21 @@ enum ItemStatus {
   IN_DEMAND
   UNCOMMON
   COMMON
+}
+
+model InventoryItem {
+  id        String   @id @default(uuid())
+  userId    String
+  itemId    String
+  boxId     String
+  status    String   @default("KEPT") // KEPT or SOLD
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user Users @relation("UserInventory", fields: [userId], references: [id], onDelete: Cascade)
+  item Item  @relation("ItemInventory", fields: [itemId], references: [id], onDelete: Cascade)
+  box  Box   @relation("BoxInventory", fields: [boxId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, itemId, status])
 }
