@@ -52,5 +52,9 @@ EXPOSE 8000
 ENV NODE_ENV=production
 ENV PORT=8000
 
-# Sync database schema and start the application
-CMD ["sh", "-c", "npx prisma db push --accept-data-loss && npm run start:prod"]
+# Copy startup script
+COPY start.sh /usr/src/app/start.sh
+RUN chmod +x /usr/src/app/start.sh
+
+# Start the application
+CMD ["/usr/src/app/start.sh"]

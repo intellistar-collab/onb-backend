@@ -1,0 +1,36 @@
+# Development Dockerfile
+FROM node:20-alpine
+
+# Set the working directory inside the container
+WORKDIR /usr/src/app
+
+# Copy package.json and package-lock.json
+COPY package*.json ./
+
+# Install all dependencies (including dev dependencies)
+ENV HUSKY=0
+RUN npm ci
+
+# Copy the rest of the application files
+COPY . .
+
+# Generate Prisma client
+RUN npx prisma generate
+
+# Expose the application port
+EXPOSE 8000
+
+# Set environment variables
+ENV NODE_ENV=development
+ENV PORT=8000
+
+# Development startup script
+RUN echo '#!/bin/sh\n\
+    echo "🚀 Starting OneNightBox Backend (Development)..."\n\
+    echo "📊 Pushing database schema changes..."\n\
+    npx prisma db push\n\
+    echo "🎯 Starting NestJS application in development mode..."\n\
+    npm run start:dev' > /usr/src/app/start-dev.sh && chmod +x /usr/src/app/start-dev.sh
+
+# Start the application in development mode
+CMD ["/usr/src/app/start-dev.sh"]
