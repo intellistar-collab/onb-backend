@@ -6,10 +6,14 @@ import {
   Param,
   Post,
   Put,
+  UseGuards,
+  Request,
 } from "@nestjs/common";
+import { BetterAuthGuard } from "../auth/better-auth.guard";
 import { BoxService } from "./box.service";
 import { CreateBoxDto } from "./dto/create-box.dto";
 import { UpdateBoxDto } from "./dto/update-box.dto";
+import { OpenBoxDto } from "./dto/open-box.dto";
 import { Decimal } from "@prisma/client/runtime/library";
 
 // Define Box interface to match service
@@ -65,5 +69,20 @@ export class BoxController {
   @Post(":id/spin")
   async spinBox(@Param("id") id: string): Promise<any> {
     return this.service.spinBox(id);
+  }
+
+  @Post("open")
+  @UseGuards(BetterAuthGuard)
+  async openBox(
+    @Request() req: any,
+    @Body() openBoxDto: OpenBoxDto,
+  ): Promise<any> {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new Error("User not authenticated");
+    }
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    return this.service.openBox(userId, openBoxDto);
   }
 }

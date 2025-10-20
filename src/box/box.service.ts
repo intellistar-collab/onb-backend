@@ -1,7 +1,12 @@
-import { Injectable } from "@nestjs/common";
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateBoxDto } from "./dto/create-box.dto";
 import { UpdateBoxDto } from "./dto/update-box.dto";
+import { OpenBoxDto } from "./dto/open-box.dto";
 import { Decimal } from "@prisma/client/runtime/library";
 
 // Define interfaces to avoid 'any' type warnings
@@ -199,6 +204,100 @@ export class BoxService {
         price: boxPrice,
       },
     };
+  }
+
+  /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
+  async openBox(userId: string, openBoxDto: OpenBoxDto) {
+    const { boxId } = openBoxDto as { boxId: string };
+
+    // 1. Fetch box with items
+    const box = await this.prisma.box.findUnique({
+      where: { id: boxId },
+      include: { items: true },
+    });
+
+    if (!box || !box.items || box.items.length === 0) {
+      throw new NotFoundException("Box not found or has no items");
+    }
+
+    // 2. Check if user has sufficient balance
+    const user = await this.prisma.users.findUnique({
+      where: { id: userId },
+      include: { wallet: true },
+    });
+
+    if (!user || !user.wallet) {
+      throw new BadRequestException("User wallet not found");
+    }
+
+    const boxPrice = Number((box as any).price);
+    const userBalance = Number(user.wallet.balance);
+
+    if (userBalance < boxPrice) {
+      throw new BadRequestException("Insufficient balance to open box");
+    }
+
+    // 3. Select random item based on odds (percentage)
+    const totalOdds = (box as any).items.reduce(
+      (sum: number, item: any) => sum + Number(item.percentage),
+      0,
+    );
+    const randomValue = Math.random() * totalOdds;
+    let cumulativeOdds = 0;
+    let selectedItem = (box as any).items[0];
+
+    for (const item of (box as any).items) {
+      cumulativeOdds += Number(item.percentage);
+      if (randomValue <= cumulativeOdds) {
+        selectedItem = item;
+        break;
+      }
+    }
+
+    // 4. Execute transaction: deduct box price, create transaction, update box stats
+    const result = await this.prisma.$transaction(async (tx) => {
+      // Deduct box price from user's wallet
+      await tx.wallet.update({
+        where: { userId },
+        data: {
+          balance: {
+            decrement: boxPrice,
+          },
+        },
+      });
+
+      // Create transaction record for box opening
+      if (user.wallet) {
+        await tx.transaction.create({
+          data: {
+            walletId: user.wallet.id,
+            amount: boxPrice,
+            type: "DEBIT",
+          },
+        });
+      }
+
+      // Update box statistics
+      await tx.box.update({
+        where: { id: boxId },
+        data: {
+          purchasedCount: { increment: 1 },
+          totalRevenue: { increment: boxPrice },
+        },
+      });
+
+      return {
+        boxPrice,
+        selectedItem: {
+          id: selectedItem.id,
+          name: selectedItem.name,
+          price: Number(selectedItem.price),
+          imageUrl: selectedItem.imageUrl,
+        },
+      };
+    });
+
+    return result;
   }
 
   // === PYTHON LOGIC: "exchangeable_items" were only items <= 17

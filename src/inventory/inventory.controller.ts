@@ -63,4 +63,13 @@ export class InventoryController {
     const userId = req.user.id;
     return this.inventoryService.deleteInventoryItem(userId, id);
   }
+
+  @Post("add")
+  async addToInventory(
+    @Request() req: any,
+    @Body() data: { itemId: string; boxId: string; status: string },
+  ) {
+    const userId = req.user.id;
+    return this.inventoryService.addToInventory(userId, data);
+  }
 }

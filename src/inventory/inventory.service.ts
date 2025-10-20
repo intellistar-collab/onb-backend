@@ -226,4 +226,103 @@ export class InventoryService {
       message: "Inventory item deleted successfully",
     };
   }
+
+  async addToInventory(
+    userId: string,
+    data: { itemId: string; boxId: string; status: string },
+  ) {
+    // Verify that the item and box exist
+    const item = await this.prisma.item.findUnique({
+      where: { id: data.itemId },
+    });
+
+    if (!item) {
+      throw new NotFoundException("Item not found");
+    }
+
+    const box = await this.prisma.box.findUnique({
+      where: { id: data.boxId },
+    });
+
+    if (!box) {
+      throw new NotFoundException("Box not found");
+    }
+
+    // Get user's wallet for transaction
+    const user = await this.prisma.users.findUnique({
+      where: { id: userId },
+      include: { wallet: true },
+    });
+
+    if (!user || !user.wallet) {
+      throw new BadRequestException("User wallet not found");
+    }
+
+    // Execute transaction based on status
+    const result = await this.prisma.$transaction(async (tx) => {
+      // Create inventory item
+      const inventoryItem = await (tx as any).inventoryItem.create({
+        data: {
+          userId,
+          itemId: data.itemId,
+          boxId: data.boxId,
+          status: data.status,
+        },
+        include: {
+          item: true,
+          box: true,
+        },
+      });
+
+      // If status is SOLD, add money to wallet and create transaction
+      if (data.status === "SOLD") {
+        const itemPrice = Number(item.price);
+
+        // Add item price to user's wallet
+        await tx.wallet.update({
+          where: { userId },
+          data: {
+            balance: {
+              increment: itemPrice,
+            },
+          },
+        });
+
+        // Create transaction record
+        if (user.wallet) {
+          await tx.transaction.create({
+            data: {
+              walletId: user.wallet.id,
+              amount: itemPrice,
+              type: "CREDIT",
+            },
+          });
+        }
+
+        // Update item statistics
+        await tx.item.update({
+          where: { id: data.itemId },
+          data: {
+            purchasedCount: { increment: 1 },
+          },
+        });
+      }
+
+      return inventoryItem;
+    });
+
+    return {
+      success: true,
+      message:
+        data.status === "SOLD"
+          ? `Item sold for $${Number(item.price).toFixed(2)}`
+          : "Item added to inventory",
+      item: {
+        id: result.id,
+        itemName: result.item.name,
+        itemPrice: result.item.price,
+        status: result.status,
+      },
+    };
+  }
 }
