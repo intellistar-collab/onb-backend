@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
 import {
   Injectable,
   NotFoundException,
@@ -34,7 +34,7 @@ export class InventoryService {
     }
 
     // Check if user already has this item in inventory
-    const existingItem = await (this.prisma as any).inventoryItem.findFirst({
+    const existingItem = await this.prisma.inventoryItem.findFirst({
       where: {
         userId,
         itemId: createInventoryItemDto.itemId,
@@ -47,7 +47,7 @@ export class InventoryService {
     }
 
     // Create inventory item
-    const inventoryItem = await (this.prisma as any).inventoryItem.create({
+    const inventoryItem = await this.prisma.inventoryItem.create({
       data: {
         userId,
         itemId: createInventoryItemDto.itemId,
@@ -67,8 +67,8 @@ export class InventoryService {
       itemName: inventoryItem.item.name,
       itemImage: inventoryItem.item.imageUrl,
       itemPrice: inventoryItem.item.price,
-      itemTier: inventoryItem.item.tier || "common",
-      itemOdds: inventoryItem.item.odds,
+      itemTier: "common", // Default tier since it's not in the schema
+      itemOdds: "0%", // Default odds since it's not in the schema
       boxId: inventoryItem.boxId,
       boxTitle: inventoryItem.box.title,
       status: inventoryItem.status,
@@ -78,7 +78,7 @@ export class InventoryService {
   }
 
   async getInventoryItems(userId: string) {
-    const inventoryItems = await (this.prisma as any).inventoryItem.findMany({
+    const inventoryItems = await this.prisma.inventoryItem.findMany({
       where: { userId },
       include: {
         item: true,
@@ -95,8 +95,8 @@ export class InventoryService {
         itemName: item.item.name,
         itemImage: item.item.imageUrl,
         itemPrice: item.item.price,
-        itemTier: item.item.tier || "common",
-        itemOdds: item.item.odds,
+        itemTier: "common", // Default tier since it's not in the schema
+        itemOdds: "0%", // Default odds since it's not in the schema
         boxId: item.boxId,
         boxTitle: item.box.title,
         status: item.status,
@@ -111,7 +111,7 @@ export class InventoryService {
     itemId: string,
     updateInventoryItemDto: UpdateInventoryItemDto,
   ) {
-    const inventoryItem = await (this.prisma as any).inventoryItem.findFirst({
+    const inventoryItem = await this.prisma.inventoryItem.findFirst({
       where: {
         id: itemId,
         userId,
@@ -126,7 +126,7 @@ export class InventoryService {
       throw new NotFoundException("Inventory item not found");
     }
 
-    const updatedItem = await (this.prisma as any).inventoryItem.update({
+    const updatedItem = await this.prisma.inventoryItem.update({
       where: { id: itemId },
       data: updateInventoryItemDto,
       include: {
@@ -142,8 +142,8 @@ export class InventoryService {
       itemName: updatedItem.item.name,
       itemImage: updatedItem.item.imageUrl,
       itemPrice: updatedItem.item.price,
-      itemTier: updatedItem.item.tier || "common",
-      itemOdds: updatedItem.item.odds,
+      itemTier: "common", // Default tier since it's not in the schema
+      itemOdds: "0%", // Default odds since it's not in the schema
       boxId: updatedItem.boxId,
       boxTitle: updatedItem.box.title,
       status: updatedItem.status,
@@ -153,7 +153,7 @@ export class InventoryService {
   }
 
   async sellInventoryItem(userId: string, itemId: string) {
-    const inventoryItem = await (this.prisma as any).inventoryItem.findFirst({
+    const inventoryItem = await this.prisma.inventoryItem.findFirst({
       where: {
         id: itemId,
         userId,
@@ -172,7 +172,7 @@ export class InventoryService {
     // Start a transaction to update inventory item and user wallet
     const result = await this.prisma.$transaction(async (tx) => {
       // Update inventory item status to SOLD
-      const updatedInventoryItem = await (tx as any).inventoryItem.update({
+      const updatedInventoryItem = await tx.inventoryItem.update({
         where: { id: itemId },
         data: { status: "SOLD" },
         include: {
@@ -186,7 +186,7 @@ export class InventoryService {
         where: { userId },
         data: {
           balance: {
-            increment: inventoryItem.item.price,
+            increment: Number(inventoryItem.item.price) || 0,
           },
         },
       });
@@ -196,7 +196,7 @@ export class InventoryService {
 
     return {
       success: true,
-      message: `Item sold for $${inventoryItem.item.price}`,
+      message: `Item sold for $${Number(inventoryItem.item.price).toFixed(2)}`,
       item: {
         id: result.id,
         itemName: result.item.name,
@@ -206,7 +206,7 @@ export class InventoryService {
   }
 
   async deleteInventoryItem(userId: string, itemId: string) {
-    const inventoryItem = await (this.prisma as any).inventoryItem.findFirst({
+    const inventoryItem = await this.prisma.inventoryItem.findFirst({
       where: {
         id: itemId,
         userId,
@@ -217,7 +217,7 @@ export class InventoryService {
       throw new NotFoundException("Inventory item not found");
     }
 
-    await (this.prisma as any).inventoryItem.delete({
+    await this.prisma.inventoryItem.delete({
       where: { id: itemId },
     });
 
@@ -248,20 +248,23 @@ export class InventoryService {
       throw new NotFoundException("Box not found");
     }
 
-    // Get user's wallet for transaction
-    const user = await this.prisma.users.findUnique({
-      where: { id: userId },
-      include: { wallet: true },
-    });
+    // Get user's wallet for transaction (only needed for SOLD status)
+    let user: any = null;
+    if (data.status === "SOLD") {
+      user = await this.prisma.users.findUnique({
+        where: { id: userId },
+        include: { wallet: true },
+      });
 
-    if (!user || !user.wallet) {
-      throw new BadRequestException("User wallet not found");
+      if (!user || !user.wallet) {
+        throw new BadRequestException("User wallet not found");
+      }
     }
 
     // Execute transaction based on status
     const result = await this.prisma.$transaction(async (tx) => {
       // Create inventory item
-      const inventoryItem = await (tx as any).inventoryItem.create({
+      const inventoryItem = await tx.inventoryItem.create({
         data: {
           userId,
           itemId: data.itemId,
@@ -275,7 +278,7 @@ export class InventoryService {
       });
 
       // If status is SOLD, add money to wallet and create transaction
-      if (data.status === "SOLD") {
+      if (data.status === "SOLD" && user && user.wallet) {
         const itemPrice = Number(item.price);
 
         // Add item price to user's wallet
@@ -289,15 +292,13 @@ export class InventoryService {
         });
 
         // Create transaction record
-        if (user.wallet) {
-          await tx.transaction.create({
-            data: {
-              walletId: user.wallet.id,
-              amount: itemPrice,
-              type: "CREDIT",
-            },
-          });
-        }
+        await tx.transaction.create({
+          data: {
+            walletId: user.wallet.id,
+            amount: itemPrice,
+            type: "CREDIT",
+          },
+        });
 
         // Update item statistics
         await tx.item.update({

@@ -1,5 +1,6 @@
 import * as winston from "winston";
 import "winston-daily-rotate-file";
+import { LoggerService } from "@nestjs/common";
 
 // Configure daily rotation file transport
 const transport = new winston.transports.DailyRotateFile({
@@ -10,7 +11,7 @@ const transport = new winston.transports.DailyRotateFile({
 });
 
 // Create a custom logger using winston
-export const logger = winston.createLogger({
+const winstonLogger = winston.createLogger({
   level: "info",
   format: winston.format.combine(
     winston.format.timestamp(),
@@ -26,3 +27,29 @@ export const logger = winston.createLogger({
     transport,
   ],
 });
+
+// Create a NestJS-compatible logger
+export class WinstonLogger implements LoggerService {
+  log(message: string, context?: string) {
+    winstonLogger.info(message, { context });
+  }
+
+  error(message: string, trace?: string, context?: string) {
+    winstonLogger.error(message, { trace, context });
+  }
+
+  warn(message: string, context?: string) {
+    winstonLogger.warn(message, { context });
+  }
+
+  debug(message: string, context?: string) {
+    winstonLogger.debug(message, { context });
+  }
+
+  verbose(message: string, context?: string) {
+    winstonLogger.verbose(message, { context });
+  }
+}
+
+// Export the logger instance for backward compatibility
+export const logger = new WinstonLogger();

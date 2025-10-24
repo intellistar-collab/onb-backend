@@ -72,6 +72,14 @@ export class UsersService {
       mobile,
       location,
       password,
+      dob,
+      gender,
+      streetNumberOrName,
+      street,
+      city,
+      state,
+      zipCode,
+      country,
     } = createUserDto;
 
     // Check if the email already exists
@@ -102,6 +110,14 @@ export class UsersService {
             mobile: mobile || null,
             location: location || null,
             password: hashedPassword,
+            dob: dob ? new Date(dob) : null,
+            gender: gender || "male",
+            streetNumberOrName: streetNumberOrName || null,
+            street: street || null,
+            city: city || null,
+            state: state || null,
+            zipCode: zipCode || null,
+            country: country || null,
           } as any,
         });
         /* eslint-enable @typescript-eslint/no-unsafe-assignment */
@@ -352,5 +368,30 @@ export class UsersService {
         createdAt: "desc",
       },
     });
+  }
+
+  async getUserById(id: string): Promise<User> {
+    try {
+      const user = await this.prisma.users.findUnique({
+        where: { id },
+      });
+
+      if (!user) {
+        throw new HttpException("User not found", HttpStatus.NOT_FOUND);
+      }
+
+      return user;
+    } catch (error: unknown) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      throw new HttpException(
+        `Error fetching user: ${errorMessage}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 }

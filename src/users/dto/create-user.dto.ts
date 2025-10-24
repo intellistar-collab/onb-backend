@@ -67,13 +67,63 @@ export class CreateUserDto {
   @ApiProperty({ example: "+1234567890", required: false })
   @IsOptional()
   @IsString()
-  @Length(10, 15)
+  @Length(10, 15, {
+    message: "Mobile number must be between 10 and 15 characters",
+  })
   mobile?: string;
 
   @ApiProperty({ example: "New Location", required: false })
   @IsOptional()
   @IsString()
   location?: string;
+
+  @ApiProperty({ example: "1990-01-01", required: false })
+  @IsOptional()
+  @IsString()
+  dob?: string;
+
+  @ApiProperty({
+    example: "male",
+    enum: ["male", "female", "other"],
+    required: false,
+    default: "male",
+  })
+  @IsOptional()
+  @IsEnum(
+    { male: "male", female: "female", other: "other" },
+    { message: "Gender must be one of: male, female, other" },
+  )
+  gender?: "male" | "female" | "other";
+
+  @ApiProperty({ example: "123 Main St", required: false })
+  @IsOptional()
+  @IsString()
+  streetNumberOrName?: string;
+
+  @ApiProperty({ example: "Main Street", required: false })
+  @IsOptional()
+  @IsString()
+  street?: string;
+
+  @ApiProperty({ example: "New York", required: false })
+  @IsOptional()
+  @IsString()
+  city?: string;
+
+  @ApiProperty({ example: "NY", required: false })
+  @IsOptional()
+  @IsString()
+  state?: string;
+
+  @ApiProperty({ example: "10001", required: false })
+  @IsOptional()
+  @IsString()
+  zipCode?: string;
+
+  @ApiProperty({ example: "USA", required: false })
+  @IsOptional()
+  @IsString()
+  country?: string;
 
   @ApiProperty({
     example: true,

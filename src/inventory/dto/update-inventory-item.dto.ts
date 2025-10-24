@@ -1,5 +1,5 @@
-import { IsEnum, IsOptional } from 'class-validator';
-import { InventoryStatus } from './create-inventory-item.dto';
+import { IsEnum, IsOptional } from "class-validator";
+import { InventoryStatus } from "./create-inventory-item.dto";
 
 export class UpdateInventoryItemDto {
   @IsEnum(InventoryStatus)

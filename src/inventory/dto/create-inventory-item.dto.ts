@@ -1,8 +1,8 @@
-import { IsString, IsEnum, IsNotEmpty } from 'class-validator';
+import { IsString, IsEnum, IsNotEmpty } from "class-validator";
 
 export enum InventoryStatus {
-  KEPT = 'KEPT',
-  SOLD = 'SOLD',
+  KEPT = "KEPT",
+  SOLD = "SOLD",
 }
 
 export class CreateInventoryItemDto {
