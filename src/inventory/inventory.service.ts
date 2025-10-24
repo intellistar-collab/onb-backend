@@ -99,6 +99,7 @@ export class InventoryService {
         itemOdds: "0%", // Default odds since it's not in the schema
         boxId: item.boxId,
         boxTitle: item.box.title,
+        boxPrice: item.box.price,
         status: item.status,
         createdAt: item.createdAt,
         updatedAt: item.updatedAt,
@@ -153,56 +154,133 @@ export class InventoryService {
   }
 
   async sellInventoryItem(userId: string, itemId: string) {
-    const inventoryItem = await this.prisma.inventoryItem.findFirst({
-      where: {
-        id: itemId,
-        userId,
-        status: "KEPT",
-      },
-      include: {
-        item: true,
-        user: true,
-      },
-    });
+    try {
+      console.log(`Selling item ${itemId} for user ${userId}`);
 
-    if (!inventoryItem) {
-      throw new NotFoundException("Inventory item not found or already sold");
-    }
-
-    // Start a transaction to update inventory item and user wallet
-    const result = await this.prisma.$transaction(async (tx) => {
-      // Update inventory item status to SOLD
-      const updatedInventoryItem = await tx.inventoryItem.update({
-        where: { id: itemId },
-        data: { status: "SOLD" },
+      const inventoryItem = await this.prisma.inventoryItem.findFirst({
+        where: {
+          id: itemId,
+          userId,
+          status: "KEPT",
+        },
         include: {
           item: true,
-          box: true,
-        },
-      });
-
-      // Add item price to user's wallet balance
-      await tx.wallet.update({
-        where: { userId },
-        data: {
-          balance: {
-            increment: Number(inventoryItem.item.price) || 0,
+          user: {
+            include: {
+              wallet: true,
+            },
           },
         },
       });
 
-      return updatedInventoryItem;
-    });
+      if (!inventoryItem) {
+        throw new NotFoundException("Inventory item not found or already sold");
+      }
 
-    return {
-      success: true,
-      message: `Item sold for $${Number(inventoryItem.item.price).toFixed(2)}`,
-      item: {
-        id: result.id,
-        itemName: result.item.name,
-        itemPrice: result.item.price,
-      },
-    };
+      // Check if user has a wallet
+      if (!inventoryItem.user.wallet) {
+        throw new BadRequestException("User wallet not found");
+      }
+
+      const itemPrice = Number(inventoryItem.item.price) || 0;
+
+      // Start a transaction to update inventory item and user wallet
+      const result = await this.prisma.$transaction(async (tx) => {
+        console.log("Starting transaction...");
+
+        // Check if there's already a SOLD record for this user and item
+        const existingSoldItem = await tx.inventoryItem.findFirst({
+          where: {
+            userId: inventoryItem.userId,
+            itemId: inventoryItem.itemId,
+            status: "SOLD",
+          },
+        });
+
+        let updatedInventoryItem: any;
+
+        if (existingSoldItem) {
+          console.log("Item already sold, updating existing record");
+          // If already sold, just update the existing SOLD record
+          updatedInventoryItem = await tx.inventoryItem.update({
+            where: { id: existingSoldItem.id },
+            data: { updatedAt: new Date() },
+            include: {
+              item: true,
+              box: true,
+            },
+          });
+        } else {
+          // Delete the KEPT record first to avoid unique constraint
+          await tx.inventoryItem.delete({
+            where: { id: itemId },
+          });
+
+          // Create a new SOLD record
+          updatedInventoryItem = await tx.inventoryItem.create({
+            data: {
+              userId: inventoryItem.userId,
+              itemId: inventoryItem.itemId,
+              boxId: inventoryItem.boxId,
+              status: "SOLD",
+              createdAt: inventoryItem.createdAt,
+              updatedAt: new Date(),
+            },
+            include: {
+              item: true,
+              box: true,
+            },
+          });
+        }
+
+        // Add item price to user's wallet balance
+        console.log(
+          `Updating wallet for user ${userId} with amount ${itemPrice}`,
+        );
+        await tx.wallet.update({
+          where: { userId },
+          data: {
+            balance: {
+              increment: itemPrice,
+            },
+          },
+        });
+        console.log("Wallet updated successfully");
+
+        // Create transaction record
+        try {
+          const transaction = await tx.transaction.create({
+            data: {
+              walletId: inventoryItem.user.wallet!.id,
+              amount: itemPrice,
+              type: "CREDIT",
+            },
+          });
+          console.log("Created transaction:", transaction);
+        } catch (transactionError) {
+          console.error("Error creating transaction:", transactionError);
+          throw transactionError;
+        }
+
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+        return updatedInventoryItem;
+      });
+
+      return {
+        success: true,
+        message: `Item sold for $${itemPrice.toFixed(2)}`,
+        item: {
+          id: result.id,
+          itemName: inventoryItem.item.name,
+          itemPrice: inventoryItem.item.price,
+        },
+      };
+    } catch (error) {
+      console.error("Error in sellInventoryItem:", error);
+      console.error("Error stack:", error.stack);
+      console.error("Error message:", error.message);
+      throw error;
+    }
   }
 
   async deleteInventoryItem(userId: string, itemId: string) {
